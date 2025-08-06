@@ -21,9 +21,7 @@ class SktimeAdapter(BaseForecastModel):
             raise ValueError("Exogenous data must be provided for prediction.")
         return self.model.predict(fh=range(1, steps + 1), X=X)
 
-    def predict_interval(
-        self, steps: int, X: pd.DataFrame = None, alpha: float = 0.05
-    ):
+    def predict_interval(self, steps: int, X: pd.DataFrame = None, alpha: float = 0.05):
         if self._use_exog and X is None:
             raise ValueError("Exogenous data must be provided for prediction.")
 
