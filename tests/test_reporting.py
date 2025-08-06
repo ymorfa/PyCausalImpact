@@ -3,8 +3,10 @@ import sys
 
 import pandas as pd
 import matplotlib
+from matplotlib.lines import Line2D
 
 matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
@@ -81,3 +83,34 @@ def test_narrative_generation():
     # narrative should mention average effect and significance
     assert "3.00" in narrative
     assert "statistically significant" in narrative
+
+
+def test_plot_includes_pre_period_and_vline():
+    df = pd.DataFrame({"y": range(100)})
+    impact = CausalImpactPy(
+        df,
+        index=None,
+        y=["y"],
+        pre_period=(0, 69),
+        post_period=(70, 99),
+        model=MeanModel(),
+    )
+    results = impact.run(n_sim=10)
+    pre_series = impact.pre_data["y"]
+    intervention = impact.post_data.index[0]
+    report = ReportGenerator(
+        results, intervention_idx=intervention, pre_data=pre_series
+    )
+    fig = report._plot_results()
+
+    obs_len = len(fig.axes[0].lines[0].get_xdata())
+    assert obs_len > len(results)
+
+    for ax in fig.axes:
+        assert any(
+            isinstance(line, Line2D)
+            and line.get_linestyle() == "--"
+            and line.get_xdata()[0] == intervention
+            for line in ax.lines
+        )
+    plt.close(fig)

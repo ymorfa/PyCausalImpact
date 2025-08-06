@@ -201,4 +201,11 @@ class CausalImpactPy:
         """Generate a textual and visual summary of the causal impact."""
         if self.results is None:
             raise ValueError("No results found. Run .run() first.")
-        return ReportGenerator(self.results, alpha=self.alpha).generate(plot=plot)
+        intervention = self.post_data.index[0]
+        pre_series = self.pre_data[self.y_cols[0]]
+        return ReportGenerator(
+            self.results,
+            alpha=self.alpha,
+            intervention_idx=intervention,
+            pre_data=pre_series,
+        ).generate(plot=plot)
