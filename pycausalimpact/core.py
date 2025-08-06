@@ -1,7 +1,12 @@
+"""Core functionality for the CausalImpactPy package."""
+
+from typing import Any, List, Optional, Tuple
+
+import numpy as np
 import pandas as pd
-from typing import Optional, Tuple, List, Any
+
 from .reporting import ReportGenerator
-from .utils import validate_periods, split_pre_post
+from .utils import split_pre_post, validate_periods
 
 
 class CausalImpactPy:
@@ -47,15 +52,91 @@ class CausalImpactPy:
         validate_periods(self.data, self.pre_period, self.post_period)
         self.pre_data, self.post_data = split_pre_post(self.data, self.pre_period, self.post_period)
 
-    def run(self):
-        """Fit the model on pre-period data and compute predictions for post-period."""
-        # TODO: Implement training and prediction logic
-        pass
+    def run(self, n_sim: int = 1000):
+        """Fit the model and generate counterfactual predictions for the post period.
 
-    def _compute_effects(self, y_true: pd.Series, y_pred: pd.Series):
-        """Compute pointwise and cumulative effects, with confidence intervals."""
-        # TODO: Implement effect calculations and uncertainty estimation
-        pass
+        Parameters
+        ----------
+        n_sim: int, optional
+            Number of bootstrap simulations to use when the model does not
+            provide prediction intervals.  Defaults to ``1000``.
+        """
+
+        y_col = self.y_cols[0]
+        x_cols = self.y_cols[1:]
+
+        pre_y = self.pre_data[y_col]
+        pre_X = self.pre_data[x_cols] if x_cols else pd.DataFrame(index=pre_y.index)
+        post_y = self.post_data[y_col]
+        post_X = self.post_data[x_cols] if x_cols else pd.DataFrame(index=post_y.index)
+
+        self.model.fit(pre_X, pre_y)
+
+        y_pred_post = pd.Series(self.model.predict(post_X), index=post_y.index)
+
+        # Residuals from the training period for bootstrap simulations
+        pre_pred = pd.Series(self.model.predict(pre_X), index=pre_y.index)
+        residuals = pre_y - pre_pred
+
+        y_pred_lower = y_pred_upper = None
+
+        if hasattr(self.model, "predict_interval"):
+            try:
+                lower, upper = self.model.predict_interval(post_X, alpha=self.alpha)
+                y_pred_lower = pd.Series(lower, index=post_y.index)
+                y_pred_upper = pd.Series(upper, index=post_y.index)
+            except Exception:  # pragma: no cover - defensive
+                y_pred_lower = y_pred_upper = None
+
+        if y_pred_lower is None or y_pred_upper is None:
+            y_pred_lower, y_pred_upper = self._bootstrap_intervals(
+                residuals, y_pred_post, n_sim
+            )
+
+        self.results = self._compute_effects(post_y, y_pred_post, y_pred_lower, y_pred_upper)
+        return self.results
+
+    def _bootstrap_intervals(
+        self, residuals: pd.Series, y_pred_post: pd.Series, n_sim: int
+    ) -> Tuple[pd.Series, pd.Series]:
+        """Generate prediction intervals via residual bootstrapping."""
+
+        rng = np.random.default_rng(0)
+        sims = rng.choice(residuals.values, size=(n_sim, len(y_pred_post)), replace=True)
+        sims = sims + y_pred_post.values
+        lower = np.quantile(sims, self.alpha / 2, axis=0)
+        upper = np.quantile(sims, 1 - self.alpha / 2, axis=0)
+        return pd.Series(lower, index=y_pred_post.index), pd.Series(
+            upper, index=y_pred_post.index
+        )
+
+    def _compute_effects(
+        self,
+        y_true: pd.Series,
+        y_pred: pd.Series,
+        y_pred_lower: Optional[pd.Series] = None,
+        y_pred_upper: Optional[pd.Series] = None,
+    ) -> pd.DataFrame:
+        """Compute point, cumulative, average and relative effects with CIs."""
+
+        df = pd.DataFrame({"observed": y_true, "predicted": y_pred})
+
+        if y_pred_lower is not None and y_pred_upper is not None:
+            df["predicted_lower"] = y_pred_lower
+            df["predicted_upper"] = y_pred_upper
+
+        df["point_effect"] = df["observed"] - df["predicted"]
+        df["cumulative_effect"] = df["point_effect"].cumsum()
+        df["relative_effect"] = df["point_effect"] / df["predicted"]
+        df["average_effect"] = df["point_effect"].mean()
+
+        if "predicted_lower" in df.columns and "predicted_upper" in df.columns:
+            df["point_effect_lower"] = df["observed"] - df["predicted_upper"]
+            df["point_effect_upper"] = df["observed"] - df["predicted_lower"]
+            df["cumulative_effect_lower"] = df["point_effect_lower"].cumsum()
+            df["cumulative_effect_upper"] = df["point_effect_upper"].cumsum()
+
+        return df
 
     def summary(self, plot: bool = True):
         """Generate a textual and visual summary of the causal impact."""
