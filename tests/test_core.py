@@ -84,6 +84,31 @@ def test_effects_and_ci_dimensions():
         assert len(res[col]) == len(res)
 
 
+def test_random_state_reproducibility():
+    df = pd.DataFrame({"y": [1, 2, 3, 4, 5, 6]})
+    pre = (0, 2)
+    post = (3, 5)
+    impact1 = CausalImpactPy(
+        df,
+        index=None,
+        y=["y"],
+        pre_period=pre,
+        post_period=post,
+        model=MeanModel(),
+    )
+    impact2 = CausalImpactPy(
+        df,
+        index=None,
+        y=["y"],
+        pre_period=pre,
+        post_period=post,
+        model=MeanModel(),
+    )
+    res1 = impact1.run(n_sim=200, random_state=42)
+    res2 = impact2.run(n_sim=200, random_state=42)
+    pd.testing.assert_frame_equal(res1, res2)
+
+
 def test_statsmodels_adapter_integration():
     df = pd.DataFrame({"y": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
     pre = (0, 5)
