@@ -11,12 +11,13 @@ class StatsmodelsAdapter(BaseForecastModel):
         self.fitted = None
 
     def fit(self, y: pd.Series, X: pd.DataFrame = None):
-        self.fitted = self.model.fit()
+        model = self.model(y, exog=X)
+        self.fitted = model.fit()
         return self
 
     def predict(self, steps: int, X: pd.DataFrame = None):
-        return self.fitted.forecast(steps=steps)
+        return self.fitted.forecast(steps=steps, exog=X)
 
     def predict_interval(self, steps: int, X: pd.DataFrame = None, alpha: float = 0.05):
-        forecast = self.fitted.get_forecast(steps=steps)
+        forecast = self.fitted.get_forecast(steps=steps, exog=X)
         return forecast.conf_int(alpha=alpha)

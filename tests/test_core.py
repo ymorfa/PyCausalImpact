@@ -3,6 +3,7 @@ import sys
 
 import pandas as pd
 import pytest
+from functools import partial
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from pycausalimpact import CausalImpactPy
@@ -84,7 +85,7 @@ def test_statsmodels_adapter_integration():
     df = pd.DataFrame({"y": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
     pre = (0, 5)
     post = (6, 9)
-    model = ARIMA(df["y"][pre[0] : pre[1] + 1], order=(1, 0, 0))
+    model = partial(ARIMA, order=(1, 0, 0))
     adapter = StatsmodelsAdapter(model)
 
     impact = CausalImpactPy(
