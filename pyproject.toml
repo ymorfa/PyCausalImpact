@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pycausalimpact"
+version = "0.1.0"
+description = "Library for estimating causal impact on time series using pluggable forecasting models."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [{name = "PyCausalImpact Developers"}]
+dependencies = [
+  "pandas>=1.2",
+  "numpy>=1.20",
+  "matplotlib>=3.5",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest",
+  "statsmodels",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pycausalimpact"]
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
