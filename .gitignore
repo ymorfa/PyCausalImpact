@@ -1,0 +1,40 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+pip-wheel-metadata/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Pytest cache
+.pytest_cache/
+
+# VSCode / PyCharm / JetBrains IDEs
+.vscode/
+.idea/
+
+# MyPy, coverage, pylint, etc.
+.mypy_cache/
+.coverage
+.cache/
+coverage.xml
+*.cover
+*.log
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+MANIFEST
+
+# OS-specific
+.DS_Store
+Thumbs.db
