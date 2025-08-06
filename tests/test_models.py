@@ -9,31 +9,19 @@ from pycausalimpact.models.prophet import ProphetAdapter
 from pycausalimpact.models.sktime import SktimeAdapter
 
 
-def test_statsmodels_adapter_forecast_with_exog():
-    y = pd.Series(range(10))
-    X = pd.DataFrame({"x": range(10)})
-
-    pre_y, post_y = y[:8], y[8:]
-    pre_X, post_X = X[:8], X[8:]
-
-    adapter = StatsmodelsAdapter(partial(ARIMA, order=(1, 0, 0)))
-    adapter.fit(pre_y, X=pre_X)
-    result = adapter.predict(steps=len(post_y), X=post_X)
-
-    manual = ARIMA(pre_y, exog=pre_X, order=(1, 0, 0)).fit()
-    expected = manual.forecast(steps=len(post_y), exog=post_X)
-
-    pd.testing.assert_series_equal(result, expected)
-
-
-def test_statsmodels_adapter_interval_dataframe():
+def test_statsmodels_adapter_fit_predict_interval():
     y = pd.Series(range(10))
     X = pd.DataFrame({"x": range(10)})
 
     adapter = StatsmodelsAdapter(partial(ARIMA, order=(1, 0, 0)))
-    adapter.fit(y[:8], X=X[:8])
+    assert adapter.fit(y[:8], X=X[:8]) is adapter
+
+    pred = adapter.predict(steps=2, X=X[8:])
+    manual = ARIMA(y[:8], exog=X[:8], order=(1, 0, 0)).fit()
+    expected = manual.forecast(steps=2, exog=X[8:])
+    pd.testing.assert_series_equal(pred, expected)
+
     interval = adapter.predict_interval(steps=2, X=X[8:])
-
     assert list(interval.columns) == ["lower", "upper"]
     assert len(interval) == 2
 
@@ -63,7 +51,7 @@ class MockProphet:
         })
 
 
-def test_prophet_adapter_handles_exog_and_interval():
+def test_prophet_adapter_fit_predict_interval():
     y = pd.Series(range(5))
     X = pd.DataFrame({"x": range(5)})
     future_X = pd.DataFrame({"x": [5, 6]})
@@ -71,15 +59,34 @@ def test_prophet_adapter_handles_exog_and_interval():
     model = MockProphet()
     adapter = ProphetAdapter(model)
 
-    adapter.fit(y, X=X)
+    assert adapter.fit(y, X=X) is adapter
     pred = adapter.predict(steps=2, X=future_X)
     interval = adapter.predict_interval(steps=2, X=future_X)
 
-    # ensure exogenous data passed through
     assert "x" in model.fit_df.columns
     assert model.predict_df["x"].iloc[-2:].reset_index(drop=True).equals(future_X["x"])
-    assert list(interval.columns) == ["lower", "upper"]
     assert list(pred) == [5, 6]
+    assert list(interval.columns) == ["lower", "upper"]
+
+
+class MockSktimeIntervalModel:
+    def __init__(self):
+        self.fit_X = None
+        self.predict_X = None
+
+    def fit(self, y, X=None):
+        self.fit_X = X
+
+    def predict(self, fh, X=None):
+        self.predict_X = X
+        return pd.Series(range(len(fh)))
+
+    def predict_interval(self, fh, X=None, coverage=0.95):
+        index = range(len(fh))
+        arrays = [["y"] * 2, [coverage] * 2, ["lower", "upper"]]
+        columns = pd.MultiIndex.from_arrays(arrays)
+        data = [[i, i + 1] for i in index]
+        return pd.DataFrame(data, columns=columns, index=index)
 
 
 class MockSktimeModel:
@@ -111,4 +118,23 @@ def test_sktime_adapter_exog_and_interval_error():
 
     with pytest.raises(NotImplementedError):
         adapter.predict_interval(steps=2, X=future_X)
+
+
+def test_sktime_adapter_fit_predict_interval():
+    y = pd.Series(range(5))
+    X = pd.DataFrame({"x": range(5)})
+    future_X = X.iloc[-2:]
+
+    model = MockSktimeIntervalModel()
+    adapter = SktimeAdapter(model)
+
+    assert adapter.fit(y, X=X) is adapter
+    pred = adapter.predict(steps=2, X=future_X)
+    interval = adapter.predict_interval(steps=2, X=future_X)
+
+    assert model.fit_X.equals(X)
+    assert model.predict_X.equals(future_X)
+    assert list(pred) == [0, 1]
+    assert list(interval.columns) == ["lower", "upper"]
+    assert len(interval) == 2
 
