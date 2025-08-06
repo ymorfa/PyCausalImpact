@@ -100,8 +100,7 @@ class CausalImpactPy:
         # Residuals for bootstrap simulations
         pre_pred = None
         hasattr_fitted = hasattr(self.model, "fitted")
-        hasattr_fittedvalues = hasattr(self.model.fitted, "fittedvalues")
-        if hasattr_fitted and hasattr_fittedvalues:
+        if hasattr_fitted and hasattr(self.model.fitted, "fittedvalues"):
             pre_pred = pd.Series(
                 self.model.fitted.fittedvalues,
                 index=pre_y.index,

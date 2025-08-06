@@ -46,6 +46,8 @@ def test_validate_periods_out_of_range():
 class MeanModel:
     def fit(self, X, y):
         self.mean_ = float(y.mean())
+        self.fitted = self
+        self.fittedvalues = pd.Series([self.mean_] * len(y), index=y.index)
 
     def predict(self, X):
         return pd.Series(self.mean_, index=X.index)
