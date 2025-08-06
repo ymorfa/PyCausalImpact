@@ -9,6 +9,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from pycausalimpact import CausalImpactPy
 from pycausalimpact.utils import validate_periods, split_pre_post
 from pycausalimpact.models.statsmodels import StatsmodelsAdapter
+from pycausalimpact.models.sktime import SktimeAdapter
 from statsmodels.tsa.arima.model import ARIMA
 
 
@@ -103,3 +104,44 @@ def test_statsmodels_adapter_integration():
     assert len(res) == (post[1] - post[0] + 1)
     assert "predicted_lower" in res.columns
     assert "predicted_upper" in res.columns
+
+
+class MockSktimeQuantileModel:
+    def __init__(self):
+        self.fit_X = None
+        self.predict_X = None
+
+    def fit(self, y, X=None):
+        self.fit_X = X
+
+    def predict(self, fh, X=None):
+        self.predict_X = X
+        return pd.Series([0] * len(fh))
+
+    def predict_quantiles(self, fh, X=None, alpha=None):
+        self.predict_X = X
+        index = range(len(fh))
+        arrays = [["y"] * len(alpha), alpha]
+        columns = pd.MultiIndex.from_arrays(arrays)
+        data = [[-1, 1] for _ in index]
+        return pd.DataFrame(data, columns=columns, index=index)
+
+
+def test_sktime_adapter_integration():
+    df = pd.DataFrame({"y": [1, 2, 3, 4, 5, 6]})
+    pre = (0, 2)
+    post = (3, 5)
+    adapter = SktimeAdapter(MockSktimeQuantileModel())
+
+    impact = CausalImpactPy(
+        df,
+        index=None,
+        y=["y"],
+        pre_period=pre,
+        post_period=post,
+        model=adapter,
+    )
+
+    res = impact.run()
+    assert res["predicted_lower"].tolist() == [-1, -1, -1]
+    assert res["predicted_upper"].tolist() == [1, 1, 1]

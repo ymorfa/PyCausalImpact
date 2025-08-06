@@ -139,3 +139,42 @@ def test_sktime_adapter_fit_predict_interval():
     assert list(pred) == [0, 1]
     assert list(interval.columns) == ["lower", "upper"]
     assert len(interval) == 2
+
+
+class MockSktimeQuantileModel:
+    def __init__(self):
+        self.fit_X = None
+        self.predict_X = None
+
+    def fit(self, y, X=None):
+        self.fit_X = X
+
+    def predict(self, fh, X=None):
+        self.predict_X = X
+        return pd.Series(range(len(fh)))
+
+    def predict_quantiles(self, fh, X=None, alpha=None):
+        self.predict_X = X
+        index = range(len(fh))
+        arrays = [["y"] * len(alpha), alpha]
+        columns = pd.MultiIndex.from_arrays(arrays)
+        data = [[-1, 1] for _ in index]
+        return pd.DataFrame(data, columns=columns, index=index)
+
+
+def test_sktime_adapter_predict_quantiles_interval():
+    y = pd.Series(range(5))
+    X = pd.DataFrame({"x": range(5)})
+    future_X = X.iloc[-2:]
+
+    model = MockSktimeQuantileModel()
+    adapter = SktimeAdapter(model)
+
+    adapter.fit(y, X=X)
+    interval = adapter.predict_interval(steps=2, X=future_X)
+
+    assert model.fit_X.equals(X)
+    assert model.predict_X.equals(future_X)
+    assert list(interval.columns) == ["lower", "upper"]
+    assert interval["lower"].tolist() == [-1, -1]
+    assert interval["upper"].tolist() == [1, 1]

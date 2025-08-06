@@ -120,23 +120,37 @@ class CausalImpactPy:
 
         y_pred_lower = y_pred_upper = None
 
+        intervals = None
         if hasattr(self.model, "predict_interval"):
             try:
                 intervals = self.model.predict_interval(
                     len(post_y), post_X, alpha=self.alpha
                 )
-                if isinstance(intervals, pd.DataFrame):
-                    lower = intervals.iloc[:, 0]
-                    upper = intervals.iloc[:, -1]
-                elif isinstance(intervals, (list, tuple)) and len(intervals) == 2:
-                    lower, upper = intervals
-                else:  # pragma: no cover
-                    lower = intervals[0]
-                    upper = intervals[1]
-                y_pred_lower = pd.Series(lower, index=post_y.index)
-                y_pred_upper = pd.Series(upper, index=post_y.index)
             except Exception:  # pragma: no cover
-                y_pred_lower = y_pred_upper = None
+                intervals = None
+
+        if intervals is None and hasattr(self.model, "predict_quantiles"):
+            try:
+                lower_q = self.alpha / 2
+                upper_q = 1 - self.alpha / 2
+                quantiles = self.model.predict_quantiles(
+                    len(post_y), post_X, alpha=[lower_q, upper_q]
+                )
+                first_var = quantiles.columns.get_level_values(0)[0]
+                intervals = quantiles[first_var][[lower_q, upper_q]]
+                intervals.columns = ["lower", "upper"]
+            except Exception:  # pragma: no cover
+                intervals = None
+
+        if isinstance(intervals, pd.DataFrame):
+            lower = intervals.iloc[:, 0].to_numpy()
+            upper = intervals.iloc[:, -1].to_numpy()
+            y_pred_lower = pd.Series(lower, index=post_y.index)
+            y_pred_upper = pd.Series(upper, index=post_y.index)
+        elif isinstance(intervals, (list, tuple)) and len(intervals) == 2:
+            lower, upper = intervals
+            y_pred_lower = pd.Series(lower, index=post_y.index)
+            y_pred_upper = pd.Series(upper, index=post_y.index)
 
         if y_pred_lower is None or y_pred_upper is None:
             y_pred_lower, y_pred_upper = self._bootstrap_intervals(
