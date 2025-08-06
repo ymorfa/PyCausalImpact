@@ -232,7 +232,9 @@ class ReportGenerator:
 
         # --- Panel 1: observed vs predicted ------------------------------------
         obs = (
-            pd.concat([pre_obs, df["observed"]]) if pre_obs is not None else df["observed"]
+            pd.concat([pre_obs, df["observed"]])
+            if pre_obs is not None
+            else df["observed"]
         )
         ax = axes[0]
         ax.plot(obs.index, obs, label="observed")
