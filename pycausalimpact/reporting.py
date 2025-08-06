@@ -71,35 +71,35 @@ class ReportGenerator:
             df["predicted_upper"].sum() if "predicted_upper" in df.columns else pd.NA
         )
 
-        avg_abs = df["point_effect"].mean()
-        avg_abs_lower = (
+        avg_effect = df["point_effect"].mean()
+        avg_effect_lower = (
             df["point_effect_lower"].mean()
             if "point_effect_lower" in df.columns
             else pd.NA
         )
-        avg_abs_upper = (
+        avg_effect_upper = (
             df["point_effect_upper"].mean()
             if "point_effect_upper" in df.columns
             else pd.NA
         )
 
-        cum_abs = df["cumulative_effect"].iloc[-1]
-        cum_abs_lower = (
+        cum_effect = df["cumulative_effect"].iloc[-1]
+        cum_effect_lower = (
             df["cumulative_effect_lower"].iloc[-1]
             if "cumulative_effect_lower" in df.columns
             else pd.NA
         )
-        cum_abs_upper = (
+        cum_effect_upper = (
             df["cumulative_effect_upper"].iloc[-1]
             if "cumulative_effect_upper" in df.columns
             else pd.NA
         )
 
-        avg_rel = avg_abs / avg_pred if avg_pred != 0 else pd.NA
-        cum_rel = cum_abs / cum_pred if cum_pred != 0 else pd.NA
+        avg_rel = avg_effect / avg_pred if avg_pred != 0 else pd.NA
+        cum_rel = cum_effect / cum_pred if cum_pred != 0 else pd.NA
 
         avg_rel_lower = (
-            avg_abs_lower / avg_pred_upper
+            avg_effect_lower / avg_pred_upper
             if (
                 "point_effect_lower" in df.columns
                 and "predicted_upper" in df.columns
@@ -109,7 +109,7 @@ class ReportGenerator:
             else pd.NA
         )
         avg_rel_upper = (
-            avg_abs_upper / avg_pred_lower
+            avg_effect_upper / avg_pred_lower
             if (
                 "point_effect_upper" in df.columns
                 and "predicted_lower" in df.columns
@@ -120,7 +120,7 @@ class ReportGenerator:
         )
 
         cum_rel_lower = (
-            cum_abs_lower / cum_pred_upper
+            cum_effect_lower / cum_pred_upper
             if (
                 "cumulative_effect_lower" in df.columns
                 and "predicted_upper" in df.columns
@@ -130,7 +130,7 @@ class ReportGenerator:
             else pd.NA
         )
         cum_rel_upper = (
-            cum_abs_upper / cum_pred_lower
+            cum_effect_upper / cum_pred_lower
             if (
                 "cumulative_effect_upper" in df.columns
                 and "predicted_lower" in df.columns
@@ -146,9 +146,9 @@ class ReportGenerator:
                 "predicted": [avg_pred, cum_pred],
                 "predicted_lower": [avg_pred_lower, cum_pred_lower],
                 "predicted_upper": [avg_pred_upper, cum_pred_upper],
-                "abs_effect": [avg_abs, cum_abs],
-                "abs_effect_lower": [avg_abs_lower, cum_abs_lower],
-                "abs_effect_upper": [avg_abs_upper, cum_abs_upper],
+                "abs_effect": [avg_effect, cum_effect],
+                "abs_effect_lower": [avg_effect_lower, cum_effect_lower],
+                "abs_effect_upper": [avg_effect_upper, cum_effect_upper],
                 "rel_effect": [avg_rel, cum_rel],
                 "rel_effect_lower": [avg_rel_lower, cum_rel_lower],
                 "rel_effect_upper": [avg_rel_upper, cum_rel_upper],
@@ -164,8 +164,8 @@ class ReportGenerator:
             # z critical value for two-tailed interval
             z_crit = norm.ppf(1 - self.alpha / 2)
             effects = [
-                (avg_abs, avg_abs_lower, avg_abs_upper, 0),
-                (cum_abs, cum_abs_lower, cum_abs_upper, 1),
+                (avg_effect, avg_effect_lower, avg_effect_upper, 0),
+                (cum_effect, cum_effect_lower, cum_effect_upper, 1),
             ]
             for mean, lower, upper, idx in effects:
                 if pd.isna(lower) or pd.isna(upper) or pd.isna(mean):
