@@ -54,7 +54,7 @@ class CausalImpactPy:
             self.data, self.pre_period, self.post_period
         )
 
-    def run(self, n_sim: int = 1000):
+    def run(self, n_sim: int = 1000, random_state: Optional[int] = 0):
         """Fit model and generate counterfactual predictions for post period.
 
         Parameters
@@ -62,6 +62,9 @@ class CausalImpactPy:
         n_sim: int, optional
             Number of bootstrap simulations to use when model lacks prediction
             intervals. Defaults to ``1000``.
+        random_state: int, optional
+            Seed for the random number generator used during bootstrapping.
+            Defaults to ``0``.
         """
 
         y_col = self.y_cols[0]
@@ -154,7 +157,7 @@ class CausalImpactPy:
 
         if y_pred_lower is None or y_pred_upper is None:
             y_pred_lower, y_pred_upper = self._bootstrap_intervals(
-                residuals, y_pred_post, n_sim
+                residuals, y_pred_post, n_sim, random_state
             )
 
         self.results = self._compute_effects(
@@ -167,10 +170,11 @@ class CausalImpactPy:
         residuals: pd.Series,
         y_pred_post: pd.Series,
         n_sim: int,
+        random_state: Optional[int] = 0,
     ) -> Tuple[pd.Series, pd.Series]:
         """Generate prediction intervals via residual bootstrapping."""
 
-        rng = np.random.default_rng(0)
+        rng = np.random.default_rng(random_state)
         sims = rng.choice(
             residuals.values,
             size=(n_sim, len(y_pred_post)),
