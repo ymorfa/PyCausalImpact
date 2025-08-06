@@ -1,6 +1,7 @@
 import pandas as pd
 from .base import BaseForecastModel
 
+
 class StatsmodelsAdapter(BaseForecastModel):
     """
     Adapter for Statsmodels forecasting models.

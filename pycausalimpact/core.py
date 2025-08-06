@@ -25,11 +25,11 @@ class CausalImpactPy:
         alpha: float = 0.05,
     ):
         """
-        :param data: Pandas DataFrame with target and optional control variables.
-        :param index: Column name to set as time index (optional if already set).
+        :param data: Pandas DataFrame with target and optional control vars.
+        :param index: Column name to set as time index (optional if set).
         :param y: List of columns: first is target (y), rest are controls (X).
-        :param pre_period: Tuple defining pre-intervention period (dates or indices).
-        :param post_period: Tuple defining post-intervention period (dates or indices).
+        :param pre_period: Tuple for pre-intervention period (dates or idx).
+        :param post_period: Tuple for post-intervention period (dates or idx).
         :param model: Forecasting model instance with fit/predict interface.
         :param alpha: Significance level for confidence intervals.
         """
@@ -50,25 +50,35 @@ class CausalImpactPy:
         if self.index:
             self.data = self.data.set_index(self.index)
         validate_periods(self.data, self.pre_period, self.post_period)
-        self.pre_data, self.post_data = split_pre_post(self.data, self.pre_period, self.post_period)
+        self.pre_data, self.post_data = split_pre_post(
+            self.data, self.pre_period, self.post_period
+        )
 
     def run(self, n_sim: int = 1000):
-        """Fit the model and generate counterfactual predictions for the post period.
+        """Fit model and generate counterfactual predictions for post period.
 
         Parameters
         ----------
         n_sim: int, optional
-            Number of bootstrap simulations to use when the model does not
-            provide prediction intervals.  Defaults to ``1000``.
+            Number of bootstrap simulations to use when model lacks prediction
+            intervals. Defaults to ``1000``.
         """
 
         y_col = self.y_cols[0]
         x_cols = self.y_cols[1:]
 
         pre_y = self.pre_data[y_col]
-        pre_X = self.pre_data[x_cols] if x_cols else pd.DataFrame(index=pre_y.index)
+        if x_cols:
+            pre_X = self.pre_data[x_cols]
+        else:
+            pre_X = pd.DataFrame(index=pre_y.index)
+
         post_y = self.post_data[y_col]
-        post_X = self.post_data[x_cols] if x_cols else pd.DataFrame(index=post_y.index)
+
+        if x_cols:
+            post_X = self.post_data[x_cols]
+        else:
+            post_X = pd.DataFrame(index=post_y.index)
 
         try:
             self.model.fit(pre_y, pre_X)
@@ -78,22 +88,35 @@ class CausalImpactPy:
 
         try:
             y_pred_post = pd.Series(
-                self.model.predict(len(post_y), post_X), index=post_y.index
+                self.model.predict(len(post_y), post_X),
+                index=post_y.index,
             )
         except TypeError:
-            y_pred_post = pd.Series(self.model.predict(post_X), index=post_y.index)
+            y_pred_post = pd.Series(
+                self.model.predict(post_X),
+                index=post_y.index,
+            )
 
-        # Residuals from the training period for bootstrap simulations
+        # Residuals for bootstrap simulations
         pre_pred = None
-        if hasattr(self.model, "fitted") and hasattr(self.model.fitted, "fittedvalues"):
-            pre_pred = pd.Series(self.model.fitted.fittedvalues, index=pre_y.index)
+        hasattr_fitted = hasattr(self.model, "fitted")
+        hasattr_fittedvalues = hasattr(self.model.fitted, "fittedvalues")
+        if hasattr_fitted and hasattr_fittedvalues:
+            pre_pred = pd.Series(
+                self.model.fitted.fittedvalues,
+                index=pre_y.index,
+            )
         if pre_pred is None:
             try:
                 pre_pred = pd.Series(
-                    self.model.predict(len(pre_y), pre_X), index=pre_y.index
+                    self.model.predict(len(pre_y), pre_X),
+                    index=pre_y.index,
                 )
-            except Exception:  # pragma: no cover - defensive
-                pre_pred = pd.Series(np.repeat(pre_y.mean(), len(pre_y)), index=pre_y.index)
+            except Exception:  # pragma: no cover
+                pre_pred = pd.Series(
+                    np.repeat(pre_y.mean(), len(pre_y)),
+                    index=pre_y.index,
+                )
         residuals = pre_y - pre_pred
 
         y_pred_lower = y_pred_upper = None
@@ -108,12 +131,12 @@ class CausalImpactPy:
                     upper = intervals.iloc[:, -1]
                 elif isinstance(intervals, (list, tuple)) and len(intervals) == 2:
                     lower, upper = intervals
-                else:  # pragma: no cover - handle dict-like outputs
+                else:  # pragma: no cover
                     lower = intervals[0]
                     upper = intervals[1]
                 y_pred_lower = pd.Series(lower, index=post_y.index)
                 y_pred_upper = pd.Series(upper, index=post_y.index)
-            except Exception:  # pragma: no cover - defensive
+            except Exception:  # pragma: no cover
                 y_pred_lower = y_pred_upper = None
 
         if y_pred_lower is None or y_pred_upper is None:
@@ -127,12 +150,19 @@ class CausalImpactPy:
         return self.results
 
     def _bootstrap_intervals(
-        self, residuals: pd.Series, y_pred_post: pd.Series, n_sim: int
+        self,
+        residuals: pd.Series,
+        y_pred_post: pd.Series,
+        n_sim: int,
     ) -> Tuple[pd.Series, pd.Series]:
         """Generate prediction intervals via residual bootstrapping."""
 
         rng = np.random.default_rng(0)
-        sims = rng.choice(residuals.values, size=(n_sim, len(y_pred_post)), replace=True)
+        sims = rng.choice(
+            residuals.values,
+            size=(n_sim, len(y_pred_post)),
+            replace=True,
+        )
         sims = sims + y_pred_post.values
         lower = np.quantile(sims, self.alpha / 2, axis=0)
         upper = np.quantile(sims, 1 - self.alpha / 2, axis=0)

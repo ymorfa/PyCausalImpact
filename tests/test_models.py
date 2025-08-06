@@ -43,12 +43,14 @@ class MockProphet:
     def predict(self, df):
         self.predict_df = df
         n = len(df)
-        return pd.DataFrame({
-            "ds": df["ds"],
-            "yhat": range(n),
-            "yhat_lower": range(n),
-            "yhat_upper": range(n),
-        })
+        return pd.DataFrame(
+            {
+                "ds": df["ds"],
+                "yhat": range(n),
+                "yhat_lower": range(n),
+                "yhat_upper": range(n),
+            }
+        )
 
 
 def test_prophet_adapter_fit_predict_interval():
@@ -137,4 +139,3 @@ def test_sktime_adapter_fit_predict_interval():
     assert list(pred) == [0, 1]
     assert list(interval.columns) == ["lower", "upper"]
     assert len(interval) == 2
-

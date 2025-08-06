@@ -33,4 +33,3 @@ impact = CausalImpactPy(
 
 impact.run()
 print(impact.summary(plot=False))
-

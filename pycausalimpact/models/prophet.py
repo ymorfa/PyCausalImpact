@@ -1,6 +1,7 @@
 import pandas as pd
 from .base import BaseForecastModel
 
+
 class ProphetAdapter(BaseForecastModel):
     """
     Adapter for Facebook Prophet model.
@@ -25,7 +26,9 @@ class ProphetAdapter(BaseForecastModel):
         return self
 
     def _prepare_future(self, steps: int, X: pd.DataFrame = None) -> pd.DataFrame:
-        future = self.model.make_future_dataframe(periods=steps, freq="D").reset_index(drop=True)
+        future = self.model.make_future_dataframe(periods=steps, freq="D").reset_index(
+            drop=True
+        )
         if self._use_exog:
             if X is None:
                 raise ValueError("Exogenous data must be provided for prediction.")

@@ -1,8 +1,9 @@
 import pandas as pd
- 
+
+
 def validate_periods(data: pd.DataFrame, pre_period, post_period):
     """Validate that ``pre_period`` and ``post_period`` lie within ``data``.
-    
+
     Parameters
     ----------
     data: pd.DataFrame
@@ -13,13 +14,13 @@ def validate_periods(data: pd.DataFrame, pre_period, post_period):
     post_period: tuple
         Two element tuple defining the start and end of the post-intervention
         window.
-    
+
     Raises
     ------
     ValueError
         If period boundaries fall outside of ``data`` or if the periods
-        overlap. 
-    """    
+        overlap.
+    """
 
     index = data.index
 

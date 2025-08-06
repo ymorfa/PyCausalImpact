@@ -1,6 +1,7 @@
 import pandas as pd
 from .base import BaseForecastModel
 
+
 class SktimeAdapter(BaseForecastModel):
     """
     Adapter for sktime forecasters.
@@ -18,7 +19,7 @@ class SktimeAdapter(BaseForecastModel):
     def predict(self, steps: int, X: pd.DataFrame = None):
         if self._use_exog and X is None:
             raise ValueError("Exogenous data must be provided for prediction.")
-        return self.model.predict(fh=range(1, steps+1), X=X)
+        return self.model.predict(fh=range(1, steps + 1), X=X)
 
     def predict_interval(self, steps: int, X: pd.DataFrame = None, alpha: float = 0.05):
         if not hasattr(self.model, "predict_interval"):

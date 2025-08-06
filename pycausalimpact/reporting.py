@@ -6,6 +6,7 @@ try:  # SciPy is an optional dependency; fall back gracefully if missing
 except Exception:  # pragma: no cover - handled in tests when SciPy absent
     norm = None
 
+
 class ReportGenerator:
     """
     Handles reporting: summary tables, narratives, and plotting.
@@ -64,10 +65,14 @@ class ReportGenerator:
 
         avg_abs = df["point_effect"].mean()
         avg_abs_lower = (
-            df["point_effect_lower"].mean() if "point_effect_lower" in df.columns else pd.NA
+            df["point_effect_lower"].mean()
+            if "point_effect_lower" in df.columns
+            else pd.NA
         )
         avg_abs_upper = (
-            df["point_effect_upper"].mean() if "point_effect_upper" in df.columns else pd.NA
+            df["point_effect_upper"].mean()
+            if "point_effect_upper" in df.columns
+            else pd.NA
         )
 
         cum_abs = df["cumulative_effect"].iloc[-1]
@@ -193,9 +198,13 @@ class ReportGenerator:
 
         if not pd.isna(p_val):
             if p_val < self.alpha:
-                narrative += f" This effect is statistically significant (p={p_val:.3f})."
+                narrative += (
+                    f" This effect is statistically significant (p={p_val:.3f})."
+                )
             else:
-                narrative += f" This effect is not statistically significant (p={p_val:.3f})."
+                narrative += (
+                    f" This effect is not statistically significant (p={p_val:.3f})."
+                )
         elif not pd.isna(causal_prob):
             narrative += (
                 f" The probability of a causal effect in this direction is "

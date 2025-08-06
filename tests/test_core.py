@@ -101,4 +101,3 @@ def test_statsmodels_adapter_integration():
     assert len(res) == (post[1] - post[0] + 1)
     assert "predicted_lower" in res.columns
     assert "predicted_upper" in res.columns
-

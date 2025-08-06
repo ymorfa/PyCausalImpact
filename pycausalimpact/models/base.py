@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import pandas as pd
 
+
 class BaseForecastModel(ABC):
     """
     Abstract base class for forecast model adapters.
