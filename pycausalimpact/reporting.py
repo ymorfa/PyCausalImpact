@@ -1,3 +1,5 @@
+from typing import Any, Optional
+
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -8,13 +10,19 @@ except Exception:  # pragma: no cover - handled in tests when SciPy absent
 
 
 class ReportGenerator:
-    """
-    Handles reporting: summary tables, narratives, and plotting.
-    """
+    """Handles reporting: summary tables, narratives, and plotting."""
 
-    def __init__(self, results: pd.DataFrame, alpha: float = 0.05):
+    def __init__(
+        self,
+        results: pd.DataFrame,
+        alpha: float = 0.05,
+        intervention_idx: Optional[Any] = None,
+        pre_data: Optional[pd.Series] = None,
+    ):
         self.results = results
         self.alpha = alpha
+        self.intervention_idx = intervention_idx
+        self.pre_data = pre_data
 
     def generate(self, plot: bool = True, narrative: bool = False):
         """Generate summary table, optional narrative and plot.
@@ -218,8 +226,16 @@ class ReportGenerator:
         df = self.results
         fig, axes = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
 
+        pre_obs = None
+        if self.pre_data is not None and len(self.pre_data) > 0:
+            pre_obs = self.pre_data.iloc[-30:]
+
+        # --- Panel 1: observed vs predicted ------------------------------------
+        obs = (
+            pd.concat([pre_obs, df["observed"]]) if pre_obs is not None else df["observed"]
+        )
         ax = axes[0]
-        ax.plot(df.index, df["observed"], label="observed")
+        ax.plot(obs.index, obs, label="observed")
         ax.plot(df.index, df["predicted"], label="predicted")
         if "predicted_lower" in df.columns and "predicted_upper" in df.columns:
             ax.fill_between(
@@ -232,34 +248,75 @@ class ReportGenerator:
         ax.set_title("Observed vs Predicted")
         ax.legend()
 
+        # --- Panel 2: pointwise effect ----------------------------------------
+        point_effect = (
+            pd.concat([pd.Series(0, index=pre_obs.index), df["point_effect"]])
+            if pre_obs is not None
+            else df["point_effect"]
+        )
         ax = axes[1]
-        ax.plot(df.index, df["point_effect"], label="pointwise effect")
+        ax.plot(point_effect.index, point_effect, label="pointwise effect")
         if "point_effect_lower" in df.columns and "point_effect_upper" in df.columns:
+            lower = (
+                pd.concat([pd.Series(0, index=pre_obs.index), df["point_effect_lower"]])
+                if pre_obs is not None
+                else df["point_effect_lower"]
+            )
+            upper = (
+                pd.concat([pd.Series(0, index=pre_obs.index), df["point_effect_upper"]])
+                if pre_obs is not None
+                else df["point_effect_upper"]
+            )
             ax.fill_between(
-                df.index,
-                df["point_effect_lower"],
-                df["point_effect_upper"],
+                lower.index,
+                lower,
+                upper,
                 color="gray",
                 alpha=0.3,
             )
         ax.axhline(0, color="black", linewidth=1)
         ax.set_title("Pointwise Effect")
 
+        # --- Panel 3: cumulative effect ---------------------------------------
+        cumulative = (
+            pd.concat([pd.Series(0, index=pre_obs.index), df["cumulative_effect"]])
+            if pre_obs is not None
+            else df["cumulative_effect"]
+        )
         ax = axes[2]
-        ax.plot(df.index, df["cumulative_effect"], label="cumulative effect")
+        ax.plot(cumulative.index, cumulative, label="cumulative effect")
         if (
             "cumulative_effect_lower" in df.columns
             and "cumulative_effect_upper" in df.columns
         ):
+            lower = (
+                pd.concat(
+                    [pd.Series(0, index=pre_obs.index), df["cumulative_effect_lower"]]
+                )
+                if pre_obs is not None
+                else df["cumulative_effect_lower"]
+            )
+            upper = (
+                pd.concat(
+                    [pd.Series(0, index=pre_obs.index), df["cumulative_effect_upper"]]
+                )
+                if pre_obs is not None
+                else df["cumulative_effect_upper"]
+            )
             ax.fill_between(
-                df.index,
-                df["cumulative_effect_lower"],
-                df["cumulative_effect_upper"],
+                lower.index,
+                lower,
+                upper,
                 color="gray",
                 alpha=0.3,
             )
         ax.axhline(0, color="black", linewidth=1)
         ax.set_title("Cumulative Effect")
+
+        # --- Intervention line -------------------------------------------------
+        if self.intervention_idx is not None:
+            for ax in axes:
+                ax.axvline(self.intervention_idx, color="black", linestyle="--")
 
         plt.tight_layout()
         return fig
