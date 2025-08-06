@@ -7,6 +7,8 @@ import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from pycausalimpact import CausalImpactPy
 from pycausalimpact.utils import validate_periods, split_pre_post
+from pycausalimpact.models.statsmodels import StatsmodelsAdapter
+from statsmodels.tsa.arima.model import ARIMA
 
 
 def _create_df():
@@ -76,4 +78,26 @@ def test_effects_and_ci_dimensions():
     ]:
         assert col in res.columns
         assert len(res[col]) == len(res)
+
+
+def test_statsmodels_adapter_integration():
+    df = pd.DataFrame({"y": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
+    pre = (0, 5)
+    post = (6, 9)
+    model = ARIMA(df["y"][pre[0] : pre[1] + 1], order=(1, 0, 0))
+    adapter = StatsmodelsAdapter(model)
+
+    impact = CausalImpactPy(
+        df,
+        index=None,
+        y=["y"],
+        pre_period=pre,
+        post_period=post,
+        model=adapter,
+    )
+
+    res = impact.run()
+    assert len(res) == (post[1] - post[0] + 1)
+    assert "predicted_lower" in res.columns
+    assert "predicted_upper" in res.columns
 

@@ -70,19 +70,47 @@ class CausalImpactPy:
         post_y = self.post_data[y_col]
         post_X = self.post_data[x_cols] if x_cols else pd.DataFrame(index=post_y.index)
 
-        self.model.fit(pre_X, pre_y)
+        try:
+            self.model.fit(pre_y, pre_X)
+        except Exception:
+            # Fall back to scikit-learn style (X, y)
+            self.model.fit(pre_X, pre_y)
 
-        y_pred_post = pd.Series(self.model.predict(post_X), index=post_y.index)
+        try:
+            y_pred_post = pd.Series(
+                self.model.predict(len(post_y), post_X), index=post_y.index
+            )
+        except TypeError:
+            y_pred_post = pd.Series(self.model.predict(post_X), index=post_y.index)
 
         # Residuals from the training period for bootstrap simulations
-        pre_pred = pd.Series(self.model.predict(pre_X), index=pre_y.index)
+        pre_pred = None
+        if hasattr(self.model, "fitted") and hasattr(self.model.fitted, "fittedvalues"):
+            pre_pred = pd.Series(self.model.fitted.fittedvalues, index=pre_y.index)
+        if pre_pred is None:
+            try:
+                pre_pred = pd.Series(
+                    self.model.predict(len(pre_y), pre_X), index=pre_y.index
+                )
+            except Exception:  # pragma: no cover - defensive
+                pre_pred = pd.Series(np.repeat(pre_y.mean(), len(pre_y)), index=pre_y.index)
         residuals = pre_y - pre_pred
 
         y_pred_lower = y_pred_upper = None
 
         if hasattr(self.model, "predict_interval"):
             try:
-                lower, upper = self.model.predict_interval(post_X, alpha=self.alpha)
+                intervals = self.model.predict_interval(
+                    len(post_y), post_X, alpha=self.alpha
+                )
+                if isinstance(intervals, pd.DataFrame):
+                    lower = intervals.iloc[:, 0]
+                    upper = intervals.iloc[:, -1]
+                elif isinstance(intervals, (list, tuple)) and len(intervals) == 2:
+                    lower, upper = intervals
+                else:  # pragma: no cover - handle dict-like outputs
+                    lower = intervals[0]
+                    upper = intervals[1]
                 y_pred_lower = pd.Series(lower, index=post_y.index)
                 y_pred_upper = pd.Series(upper, index=post_y.index)
             except Exception:  # pragma: no cover - defensive
@@ -93,7 +121,9 @@ class CausalImpactPy:
                 residuals, y_pred_post, n_sim
             )
 
-        self.results = self._compute_effects(post_y, y_pred_post, y_pred_lower, y_pred_upper)
+        self.results = self._compute_effects(
+            post_y, y_pred_post, y_pred_lower, y_pred_upper
+        )
         return self.results
 
     def _bootstrap_intervals(
