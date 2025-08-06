@@ -20,4 +20,4 @@ class BaseForecastModel(ABC):
         """
         Optional: return prediction intervals if the model supports it.
         """
-        raise NotImplementedError
+        raise NotImplementedError("Prediction intervals not supported for this model.")
