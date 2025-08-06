@@ -49,6 +49,8 @@ def test_summary_table_structure_and_values():
         "rel_effect",
         "rel_effect_lower",
         "rel_effect_upper",
+        "p_value",
+        "causal_probability",
     ]
 
     assert list(summary.index) == ["average", "cumulative"]
@@ -57,6 +59,8 @@ def test_summary_table_structure_and_values():
     assert summary.loc["average", "abs_effect"] == pytest.approx(3.0)
     assert summary.loc["cumulative", "abs_effect"] == pytest.approx(9.0)
     assert summary.loc["cumulative", "rel_effect"] == pytest.approx(1.5)
+    assert summary.loc["cumulative", "p_value"] < 0.05
+    assert summary.loc["cumulative", "causal_probability"] > 0.95
 
 
 def test_plotting_runs_without_error():

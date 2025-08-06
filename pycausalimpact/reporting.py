@@ -1,6 +1,11 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
+try:  # SciPy is an optional dependency; fall back gracefully if missing
+    from scipy.stats import norm
+except Exception:  # pragma: no cover - handled in tests when SciPy absent
+    norm = None
+
 class ReportGenerator:
     """
     Handles reporting: summary tables, narratives, and plotting.
@@ -120,6 +125,31 @@ class ReportGenerator:
             },
             index=["average", "cumulative"],
         )
+
+        # --- Significance metrics -------------------------------------------------
+        p_values = [pd.NA, pd.NA]
+        causal_probs = [pd.NA, pd.NA]
+
+        if norm is not None:
+            # z critical value for two-tailed interval
+            z_crit = norm.ppf(1 - self.alpha / 2)
+            effects = [
+                (avg_abs, avg_abs_lower, avg_abs_upper, 0),
+                (cum_abs, cum_abs_lower, cum_abs_upper, 1),
+            ]
+            for mean, lower, upper, idx in effects:
+                if pd.isna(lower) or pd.isna(upper) or pd.isna(mean):
+                    continue
+                denom = (upper - lower) / (2 * z_crit) if z_crit else None
+                if not denom or denom <= 0:
+                    continue
+                z_score = mean / denom
+                p = 2 * norm.sf(abs(z_score))
+                p_values[idx] = p
+                causal_probs[idx] = 1 - p / 2  # probability effect has observed sign
+
+        summary["p_value"] = p_values
+        summary["causal_probability"] = causal_probs
 
         return summary
 
