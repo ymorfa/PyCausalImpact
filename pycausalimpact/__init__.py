@@ -1,6 +1,8 @@
 """
-PyCausalImpact: Library for estimating causal impact on time series using pluggable forecasting models.
+PyCausalImpact: Library for estimating causal impact on time series
+using pluggable forecasting models.
 """
+
 from .core import CausalImpactPy
 
 __all__ = ["CausalImpactPy"]
