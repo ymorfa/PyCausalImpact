@@ -67,3 +67,14 @@ def test_plotting_runs_without_error():
     results = _generate_results()
     report = ReportGenerator(results)
     report.generate(plot=True)  # Should not raise
+
+
+def test_narrative_generation():
+    results = _generate_results()
+    report = ReportGenerator(results)
+    summary, narrative = report.generate(plot=False, narrative=True)
+
+    assert isinstance(narrative, str)
+    # narrative should mention average effect and significance
+    assert "3.00" in narrative
+    assert "statistically significant" in narrative

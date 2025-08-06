@@ -15,12 +15,29 @@ class ReportGenerator:
         self.results = results
         self.alpha = alpha
 
-    def generate(self, plot: bool = True):
-        """Generate summary table and optional plot."""
+    def generate(self, plot: bool = True, narrative: bool = False):
+        """Generate summary table, optional narrative and plot.
+
+        Parameters
+        ----------
+        plot: bool, default True
+            If ``True`` a 3-panel matplotlib figure is produced.
+        narrative: bool, default False
+            If ``True`` also return a human-readable narrative describing
+            the average effect and its statistical significance.
+
+        Returns
+        -------
+        DataFrame or tuple(DataFrame, str)
+            The summary table and, when ``narrative=True``, a tuple of the
+            table and the generated narrative string.
+        """
+
         summary_table = self._build_summary_table()
+        narrative_text = self._build_narrative(summary_table) if narrative else None
         if plot:
             self._plot_results()
-        return summary_table
+        return (summary_table, narrative_text) if narrative else summary_table
 
     def _build_summary_table(self):
         """Compute average, cumulative effects and confidence intervals."""
@@ -152,6 +169,40 @@ class ReportGenerator:
         summary["causal_probability"] = causal_probs
 
         return summary
+
+    # ------------------------------------------------------------------
+    # Narrative construction
+    def _build_narrative(self, summary: pd.DataFrame) -> str:
+        """Create a short text describing average effect and significance."""
+
+        avg_effect = summary.loc["average", "abs_effect"]
+        rel_effect = summary.loc["average", "rel_effect"]
+
+        direction = "increase" if avg_effect >= 0 else "decrease"
+        narrative = (
+            f"The intervention resulted in an average {direction} of "
+            f"{abs(avg_effect):.2f} units"
+        )
+        if not pd.isna(rel_effect):
+            narrative += f" ({abs(rel_effect)*100:.1f}% )."
+        else:
+            narrative += "."
+
+        p_val = summary.loc["cumulative", "p_value"]
+        causal_prob = summary.loc["cumulative", "causal_probability"]
+
+        if not pd.isna(p_val):
+            if p_val < self.alpha:
+                narrative += f" This effect is statistically significant (p={p_val:.3f})."
+            else:
+                narrative += f" This effect is not statistically significant (p={p_val:.3f})."
+        elif not pd.isna(causal_prob):
+            narrative += (
+                f" The probability of a causal effect in this direction is "
+                f"{causal_prob:.3f}."
+            )
+
+        return narrative
 
     def _plot_results(self):
         """3-panel plot: observed vs predicted, pointwise effect, cumulative effect."""
