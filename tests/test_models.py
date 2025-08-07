@@ -4,9 +4,7 @@ from functools import partial
 
 from statsmodels.tsa.arima.model import ARIMA
 
-from pycausalimpact.models.statsmodels import StatsmodelsAdapter
-from pycausalimpact.models.prophet import ProphetAdapter
-from pycausalimpact.models.sktime import SktimeAdapter
+from pycausalimpact.models import StatsmodelsAdapter, ProphetAdapter, SktimeAdapter
 
 
 def test_statsmodels_adapter_fit_predict_interval():
