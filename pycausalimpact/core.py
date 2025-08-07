@@ -194,7 +194,7 @@ class CausalImpactPy:
         y_pred_lower: Optional[pd.Series] = None,
         y_pred_upper: Optional[pd.Series] = None,
     ) -> pd.DataFrame:
-        """Compute point, cumulative, average and relative effects with CIs."""
+        """Compute point, cumulative and relative effects with CIs."""
 
         df = pd.DataFrame({"observed": y_true, "predicted": y_pred})
 
@@ -205,7 +205,6 @@ class CausalImpactPy:
         df["point_effect"] = df["observed"] - df["predicted"]
         df["cumulative_effect"] = df["point_effect"].cumsum()
         df["relative_effect"] = df["point_effect"] / df["predicted"]
-        df["average_effect"] = df["point_effect"].mean()
 
         if "predicted_lower" in df.columns and "predicted_upper" in df.columns:
             df["point_effect_lower"] = df["observed"] - df["predicted_upper"]
