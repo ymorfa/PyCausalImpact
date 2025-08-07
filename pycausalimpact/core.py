@@ -49,6 +49,10 @@ class CausalImpactPy:
         """Set index, validate inputs, and split into pre and post periods."""
         if self.index:
             self.data = self.data.set_index(self.index)
+        self.data = self.data.sort_index()
+        if not self.data.index.is_monotonic_increasing:
+            raise ValueError("Data index must be sorted in ascending order.")
+
         validate_periods(self.data, self.pre_period, self.post_period)
         self.pre_data, self.post_data = split_pre_post(
             self.data, self.pre_period, self.post_period
