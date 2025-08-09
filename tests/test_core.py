@@ -172,6 +172,22 @@ def test_sktime_adapter_integration():
     assert res["predicted_upper"].tolist() == [1, 1, 1]
 
 
+def test_invalid_inference_method():
+    df = pd.DataFrame({"y": [1, 2, 3, 4]})
+    pre = (0, 1)
+    post = (2, 3)
+    with pytest.raises(ValueError):
+        CausalImpactPy(
+            df,
+            index=None,
+            y=["y"],
+            pre_period=pre,
+            post_period=post,
+            model=MeanModel(),
+            inference_method="invalid",
+        )
+
+
 def test_causalimpact_no_exog_statsmodels():
     df = pd.DataFrame({"y": [1, 2, 3, 4, 5, 6]})
     pre = (0, 2)

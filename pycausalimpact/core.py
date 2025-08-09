@@ -23,6 +23,7 @@ class CausalImpactPy:
         post_period: Tuple,
         model: Any,
         alpha: float = 0.05,
+        inference_method: str = "variational",
     ):
         """
         :param data: Pandas DataFrame with target and optional control vars.
@@ -32,7 +33,14 @@ class CausalImpactPy:
         :param post_period: Tuple for post-intervention period (dates or idx).
         :param model: Forecasting model instance with fit/predict interface.
         :param alpha: Significance level for confidence intervals.
+        :param inference_method: Inference algorithm for TensorFlow Probability
+            models. Must be ``"variational"`` or ``"hmc"``. Ignored for other
+            model types.
         """
+        valid_methods = {"variational", "hmc"}
+        if inference_method not in valid_methods:
+            raise ValueError(f"inference_method must be one of {sorted(valid_methods)}")
+
         self.data = data.copy()
         self.index = index
         self.y_cols = y
@@ -40,6 +48,15 @@ class CausalImpactPy:
         self.post_period = post_period
         self.model = model
         self.alpha = alpha
+        self.inference_method = inference_method
+
+        try:
+            from .models.tfp import TFPStructuralTimeSeries
+
+            if isinstance(self.model, TFPStructuralTimeSeries):
+                self.model.inference_method = inference_method
+        except Exception:
+            pass
 
         self.results: Optional[pd.DataFrame] = None
 
@@ -87,11 +104,20 @@ class CausalImpactPy:
         else:
             post_X = pd.DataFrame(index=post_y.index)
 
+        fit_kwargs = {}
         try:
-            self.model.fit(pre_y, pre_X)
+            from .models.tfp import TFPStructuralTimeSeries
+
+            if isinstance(self.model, TFPStructuralTimeSeries):
+                fit_kwargs["inference_method"] = self.inference_method
+        except Exception:
+            pass
+
+        try:
+            self.model.fit(pre_y, pre_X, **fit_kwargs)
         except Exception:
             # Fall back to scikit-learn style (X, y)
-            self.model.fit(pre_X, pre_y)
+            self.model.fit(pre_X, pre_y, **fit_kwargs)
 
         try:
             y_pred_post = pd.Series(
