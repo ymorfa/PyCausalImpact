@@ -36,7 +36,9 @@ def exog_X(rng: np.random.Generator, series_y: pd.Series) -> pd.DataFrame:
 
 
 @pytest.fixture
-def pre_post_periods(series_y: pd.Series) -> tuple[tuple[pd.Timestamp, pd.Timestamp], tuple[pd.Timestamp, pd.Timestamp]]:
+def pre_post_periods(
+    series_y: pd.Series,
+) -> tuple[tuple[pd.Timestamp, pd.Timestamp], tuple[pd.Timestamp, pd.Timestamp]]:
     """Default pre/post intervention periods."""
     split = 50
     index = series_y.index
