@@ -39,11 +39,12 @@ class ProphetAdapter(BaseForecastModel):
     def predict(self, steps: int, X: pd.DataFrame = None):
         future = self._prepare_future(steps, X=X)
         forecast = self.model.predict(future)
-        return forecast["yhat"].iloc[-steps:]
+        return forecast["yhat"].iloc[-steps:].reset_index(drop=True)
 
     def predict_interval(self, steps: int, X: pd.DataFrame = None, alpha: float = 0.05):
         future = self._prepare_future(steps, X=X)
         forecast = self.model.predict(future)
         interval = forecast[["yhat_lower", "yhat_upper"]].iloc[-steps:]
+        interval = interval.reset_index(drop=True)
         interval.columns = ["lower", "upper"]
         return interval

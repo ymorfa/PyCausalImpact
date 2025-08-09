@@ -26,3 +26,25 @@ Each column describes a different quantity derived from the observed series and 
 - **causal_probability** – probability that the intervention produced an effect with the observed sign, computed as `1 - p_value/2`. When p‑values cannot be computed, a Bayesian or bootstrap‑based estimate should be implemented.
 
 Together these metrics summarise both the magnitude and the statistical significance of the intervention's impact.
+
+## Running Backend Tests
+
+The test suite uses markers to target specific forecasting backends. After installing the optional dependencies with:
+
+```
+pip install .[test]
+```
+
+run all tests via `pytest -q`.
+
+To skip slower TensorFlow Probability tests:
+
+```
+pytest -q -m "not heavy"
+```
+
+To run tests for a single backend:
+
+```
+pytest -q -k statsmodels   # or prophet, sktime, tfp
+```
