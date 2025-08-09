@@ -24,6 +24,23 @@ def test_statsmodels_adapter_fit_predict_interval():
     assert len(interval) == 2
 
 
+def test_statsmodels_adapter_no_exog():
+    y = pd.Series(range(10))
+    empty_X = pd.DataFrame(index=y.index)
+
+    adapter = StatsmodelsAdapter(partial(ARIMA, order=(1, 0, 0)))
+    adapter.fit(y, X=empty_X)
+
+    # After fitting with empty X, exogenous data shouldn't be required
+    assert adapter._use_exog is False
+    pred = adapter.predict(steps=2)
+    interval = adapter.predict_interval(steps=2)
+
+    assert len(pred) == 2
+    assert list(interval.columns) == ["lower", "upper"]
+    assert len(interval) == 2
+
+
 class MockProphet:
     def __init__(self):
         self.fit_df = None
