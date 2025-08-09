@@ -41,9 +41,7 @@ class TFPStructuralTimeSeries(BaseForecastModel):
         if isinstance(X, pd.DataFrame) and X.shape[1] == 0:
             X = None
         self._y = y.to_numpy(dtype=np.float32)
-        self._design_matrix = (
-            X.to_numpy(dtype=np.float32) if X is not None else None
-        )
+        self._design_matrix = X.to_numpy(dtype=np.float32) if X is not None else None
         self._model = self._build_model(self._y, self._design_matrix)
 
         target_log_prob_fn = self._model.joint_log_prob(observed_time_series=self._y)
@@ -58,6 +56,7 @@ class TFPStructuralTimeSeries(BaseForecastModel):
         self._surrogate_posterior = surrogate_posterior
 
         if self.use_hmc:
+
             @tf.function
             def _target_log_prob_fn(*params):
                 return target_log_prob_fn(*params)
@@ -86,7 +85,9 @@ class TFPStructuralTimeSeries(BaseForecastModel):
 
         if self._design_matrix is not None:
             if X is None:
-                X_future = np.zeros((steps, self._design_matrix.shape[1]), dtype=np.float32)
+                X_future = np.zeros(
+                    (steps, self._design_matrix.shape[1]), dtype=np.float32
+                )
             else:
                 X_future = X.to_numpy(dtype=np.float32)
             design_matrix = np.vstack([self._design_matrix, X_future])
@@ -107,9 +108,7 @@ class TFPStructuralTimeSeries(BaseForecastModel):
         mean = forecast_dist.mean().numpy().squeeze(-1)
         return pd.Series(mean, index=range(steps))
 
-    def predict_interval(
-        self, steps: int, X: pd.DataFrame = None, alpha: float = 0.05
-    ):
+    def predict_interval(self, steps: int, X: pd.DataFrame = None, alpha: float = 0.05):
         forecast_dist = self._forecast_dist(steps, X)
         samples = forecast_dist.sample(self.num_results).numpy().squeeze(-1)
         lower = np.quantile(samples, alpha / 2, axis=0)

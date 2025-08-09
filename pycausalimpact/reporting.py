@@ -18,6 +18,7 @@ except Exception:  # pragma: no cover - handled in tests when SciPy absent
 if _scipy_norm is not None:  # pragma: no branch - simple selection
     norm = _scipy_norm
 else:
+
     class _Norm:
         """Minimal normal distribution helper using only ``math``."""
 
