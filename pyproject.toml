@@ -17,36 +17,42 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Adaptadores opcionales (no se instalan en CI por defecto)
-statsmodels = ["statsmodels>=0.13"]
-prophet = ["prophet>=1.1"]
-sktime = ["sktime>=0.20"]
-tfp = [
-  "tensorflow>=2.14",
-  "tensorflow-probability>=0.22",
+# Optional backends (install only what you need)
+statsmodels = ["statsmodels>=0.13,<0.15"]
+
+prophet = [
+  "prophet>=1.1,<1.2",
+  "cmdstanpy>=1.2",          # Prophet backend; may compile CmdStan in CI
 ]
 
-# Conjunto para desarrollo/test por defecto en CI:
-# pytest + un backend por defecto (statsmodels) para que los tests básicos corran.
-test = [
-  "pytest>=7.0",
-  "prophet==1.1.7",
-  "statsmodels>=0.13",
-  "scikit-learn==1.7.1",
-  "sktime==0.38.4",
-  "keras==3.11.1",
+sktime = [
+  "sktime>=0.28,<0.39",
+  "scikit-learn>=1.3,<1.7",  # Compatible range; 1.7.x doesn't exist yet
+]
+
+tfp = [
   "tensorflow==2.19.0",
   "tensorflow-probability==0.25.0",
-  "tf_keras==2.19.0",
-
 ]
 
-# (Opcional) extras para desarrollo local
+# Full integration testing set (heavy). CI can `pip install .[test]`.
+test = [
+  "pytest>=7,<9",
+  "statsmodels>=0.13,<0.15",
+  "prophet>=1.1,<1.2",
+  "cmdstanpy>=1.2",
+  "sktime>=0.28,<0.39",
+  "scikit-learn>=1.3,<1.7",
+  "tensorflow==2.19.0",
+  "tensorflow-probability==0.25.0"
+]
+
+# Dev conveniences (optional)
 dev = [
   "pre-commit",
   "black",
   "flake8",
-  "pytest>=7.0",
+  "pytest>=7,<9",
 ]
 
 [tool.setuptools.packages.find]
