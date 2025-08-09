@@ -26,6 +26,12 @@ cd PyCausalImpact
 pip install -e .
 ```
 
+To enable TensorFlow Probability-based models, install the optional `tfp` extra:
+
+```bash
+pip install pycausalimpact[tfp]
+```
+
 ## Usage Overview
 
 ```python
