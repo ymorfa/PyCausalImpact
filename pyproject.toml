@@ -31,8 +31,8 @@ sktime = [
 ]
 
 tfp = [
-  "tensorflow==2.19.0",
-  "tensorflow-probability==0.25.0",
+  "tensorflow>=2",
+  "tensorflow-probability>=0.25",
 ]
 
 # Full integration testing set (heavy). CI can `pip install .[test]`.
