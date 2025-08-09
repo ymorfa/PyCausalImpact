@@ -4,7 +4,7 @@
 
 ## Key Features
 
-- **Flexible forecasting backend:** Use models from libraries such as **Statsmodels**, **Prophet**, **sktime**, **Darts**, or any compatible `fit/predict` estimator.
+- **Flexible forecasting backend:** Use models from libraries such as **Statsmodels**, **Prophet**, **sktime**, **TensorFlow Probability**, **Darts**, or any compatible `fit/predict` estimator.
 - **Causal effect estimation:** Compute the difference between observed and predicted values after an intervention.
 - **Rich statistical outputs:**
   - Pointwise causal effect (observed – predicted)
@@ -101,7 +101,7 @@ See more runnable scripts in [`docs/examples/`](docs/examples/).
 
 ## Planned Features
 
-- [x] Model wrappers for **Statsmodels**, **Prophet**, and **sktime** out of the box.
+- [x] Model wrappers for **Statsmodels**, **Prophet**, **sktime**, and **TensorFlow Probability** out of the box.
 - [x] Bootstrapping-based confidence intervals for models lacking predictive intervals.
 - [x] Narrative-style report generation for executive summaries.
 - [ ] Extended plotting options (seaborn, Plotly, etc.).

@@ -7,6 +7,7 @@ from statsmodels.tsa.arima.model import ARIMA
 from pycausalimpact.models.statsmodels import StatsmodelsAdapter
 from pycausalimpact.models.prophet import ProphetAdapter
 from pycausalimpact.models.sktime import SktimeAdapter
+from pycausalimpact.models.tfp import TFPStructuralTimeSeries
 
 
 def test_statsmodels_adapter_fit_predict_interval():
@@ -195,3 +196,17 @@ def test_sktime_adapter_predict_quantiles_interval():
     assert list(interval.columns) == ["lower", "upper"]
     assert interval["lower"].tolist() == [-1, -1]
     assert interval["upper"].tolist() == [1, 1]
+
+
+def test_tfp_adapter_fit_predict_interval():
+    y = pd.Series(range(8), dtype=float)
+    X = pd.DataFrame({"x": range(8)}, dtype=float)
+
+    adapter = TFPStructuralTimeSeries(num_variational_steps=5, num_results=5)
+    adapter.fit(y[:6], X[:6])
+    pred = adapter.predict(steps=2, X=X[6:])
+    interval = adapter.predict_interval(steps=2, X=X[6:])
+
+    assert len(pred) == 2
+    assert list(interval.columns) == ["lower", "upper"]
+    assert len(interval) == 2
