@@ -18,12 +18,29 @@ class TFPStructuralTimeSeries(BaseForecastModel):
         num_variational_steps: int = 200,
         num_results: int = 100,
         num_warmup_steps: int = 100,
-        use_hmc: bool = False,
+        inference_method: str = "variational",
     ):
+        """
+        Parameters
+        ----------
+        num_variational_steps: int, optional
+            Number of steps for variational inference optimisation.
+        num_results: int, optional
+            Number of posterior samples to draw.
+        num_warmup_steps: int, optional
+            Number of burn-in steps for HMC.
+        inference_method: str, optional
+            Inference algorithm to use. Must be ``"variational"`` or ``"hmc"``.
+        """
+
+        valid_methods = {"variational", "hmc"}
+        if inference_method not in valid_methods:
+            raise ValueError(f"inference_method must be one of {sorted(valid_methods)}")
+
         self.num_variational_steps = num_variational_steps
         self.num_results = num_results
         self.num_warmup_steps = num_warmup_steps
-        self.use_hmc = use_hmc
+        self.inference_method = inference_method
 
         self._model = None
         self._surrogate_posterior = None
@@ -37,9 +54,22 @@ class TFPStructuralTimeSeries(BaseForecastModel):
             components.append(sts.LinearRegression(design_matrix=design_matrix))
         return sts.Sum(components, observed_time_series=y)
 
-    def fit(self, y: pd.Series, X: pd.DataFrame = None):
+    def fit(
+        self,
+        y: pd.Series,
+        X: pd.DataFrame | None = None,
+        inference_method: str | None = None,
+    ):
         if isinstance(X, pd.DataFrame) and X.shape[1] == 0:
             X = None
+        if inference_method is not None:
+            valid_methods = {"variational", "hmc"}
+            if inference_method not in valid_methods:
+                raise ValueError(
+                    f"inference_method must be one of {sorted(valid_methods)}"
+                )
+            self.inference_method = inference_method
+
         self._y = y.to_numpy(dtype=np.float32)
         self._design_matrix = X.to_numpy(dtype=np.float32) if X is not None else None
         self._model = self._build_model(self._y, self._design_matrix)
@@ -55,7 +85,7 @@ class TFPStructuralTimeSeries(BaseForecastModel):
         )
         self._surrogate_posterior = surrogate_posterior
 
-        if self.use_hmc:
+        if self.inference_method == "hmc":
 
             @tf.function
             def _target_log_prob_fn(*params):

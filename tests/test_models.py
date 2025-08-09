@@ -4,6 +4,7 @@ from functools import partial
 
 from statsmodels.tsa.arima.model import ARIMA
 
+from pycausalimpact import CausalImpactPy
 from pycausalimpact.models import (
     StatsmodelsAdapter,
     ProphetAdapter,
@@ -200,6 +201,8 @@ def test_sktime_adapter_predict_quantiles_interval():
     assert interval["upper"].tolist() == [1, 1]
 
 
+@pytest.mark.backend("tfp")
+@pytest.mark.skipif(TFPStructuralTimeSeries is None, reason="tfp not installed")
 def test_tfp_adapter_fit_predict_interval():
     y = pd.Series(range(8), dtype=float)
     X = pd.DataFrame({"x": range(8)}, dtype=float)
@@ -212,3 +215,32 @@ def test_tfp_adapter_fit_predict_interval():
     assert len(pred) == 2
     assert list(interval.columns) == ["lower", "upper"]
     assert len(interval) == 2
+
+
+@pytest.mark.backend("tfp")
+@pytest.mark.skipif(TFPStructuralTimeSeries is None, reason="tfp not installed")
+def test_tfp_inference_method_validation():
+    with pytest.raises(ValueError):
+        TFPStructuralTimeSeries(inference_method="unsupported")
+
+
+@pytest.mark.backend("tfp")
+@pytest.mark.skipif(TFPStructuralTimeSeries is None, reason="tfp not installed")
+def test_causalimpact_forwards_inference_method(series_y, exog_X, pre_post_periods):
+    df = exog_X.copy()
+    df["y"] = series_y
+    pre, post = pre_post_periods
+    columns = ["y"] + list(exog_X.columns)
+    model = TFPStructuralTimeSeries(
+        num_variational_steps=2, num_results=2, num_warmup_steps=2
+    )
+    CausalImpactPy(
+        data=df,
+        index=None,
+        y=columns,
+        pre_period=pre,
+        post_period=post,
+        model=model,
+        inference_method="hmc",
+    )
+    assert model.inference_method == "hmc"
