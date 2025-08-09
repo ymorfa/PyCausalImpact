@@ -9,17 +9,44 @@ description = "Library for estimating causal impact on time series using pluggab
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
-authors = [{name = "PyCausalImpact Developers"}]
+authors = [{ name = "PyCausalImpact Developers" }]
 dependencies = [
-  "pandas>=1.2",
   "numpy>=1.20",
+  "pandas>=1.2",
   "matplotlib>=3.5",
 ]
 
 [project.optional-dependencies]
+# Adaptadores opcionales (no se instalan en CI por defecto)
+statsmodels = ["statsmodels>=0.13"]
+prophet = ["prophet>=1.1"]
+sktime = ["sktime>=0.20"]
+tfp = [
+  "tensorflow>=2.14",
+  "tensorflow-probability>=0.22",
+]
+
+# Conjunto para desarrollo/test por defecto en CI:
+# pytest + un backend por defecto (statsmodels) para que los tests básicos corran.
 test = [
-  "pytest",
-  "statsmodels",
+  "pytest>=7.0",
+  "prophet==1.1.7",
+  "statsmodels>=0.13",
+  "scikit-learn==1.7.1",
+  "sktime==0.38.4",
+  "keras==3.11.1",
+  "tensorflow==2.19.0",
+  "tensorflow-probability==0.25.0",
+  "tf_keras==2.19.0",
+
+]
+
+# (Opcional) extras para desarrollo local
+dev = [
+  "pre-commit",
+  "black",
+  "flake8",
+  "pytest>=7.0",
 ]
 
 [tool.setuptools.packages.find]
