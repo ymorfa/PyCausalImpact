@@ -1,5 +1,6 @@
 import pathlib
 import sys
+import importlib
 
 import pandas as pd
 import matplotlib
@@ -12,6 +13,7 @@ import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from pycausalimpact import CausalImpactPy
+import pycausalimpact.reporting as reporting
 from pycausalimpact.reporting import ReportGenerator
 
 
@@ -36,6 +38,21 @@ def _generate_results():
         model=MeanModel(),
     )
     return impact.run(n_sim=200)
+
+
+def test_summary_table_without_scipy(monkeypatch):
+    """Ensure fallback normal helper is used when SciPy is absent."""
+    # Remove SciPy modules and reload reporting to trigger fallback path
+    monkeypatch.setitem(sys.modules, "scipy", None)
+    monkeypatch.setitem(sys.modules, "scipy.stats", None)
+    reloaded = importlib.reload(reporting)
+
+    results = _generate_results()
+    report = reloaded.ReportGenerator(results)
+    summary = report.generate(plot=False)
+
+    assert summary.loc["cumulative", "p_value"] < 0.05
+    assert summary.loc["cumulative", "causal_probability"] > 0.95
 
 
 def test_summary_table_structure_and_values():
