@@ -170,3 +170,23 @@ def test_sktime_adapter_integration():
     res = impact.run()
     assert res["predicted_lower"].tolist() == [-1, -1, -1]
     assert res["predicted_upper"].tolist() == [1, 1, 1]
+
+
+def test_causalimpact_no_exog_statsmodels():
+    df = pd.DataFrame({"y": [1, 2, 3, 4, 5, 6]})
+    pre = (0, 2)
+    post = (3, 5)
+    adapter = StatsmodelsAdapter(partial(ARIMA, order=(1, 0, 0)))
+
+    impact = CausalImpactPy(
+        df,
+        index=None,
+        y=["y"],
+        pre_period=pre,
+        post_period=post,
+        model=adapter,
+    )
+
+    res = impact.run()
+    assert len(res) == (post[1] - post[0] + 1)
+    assert impact.model._use_exog is False
