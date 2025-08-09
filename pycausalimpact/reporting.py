@@ -1,12 +1,49 @@
 from typing import Any, Optional
 
+import math
 import pandas as pd
 import matplotlib.pyplot as plt
 
-try:  # SciPy is an optional dependency; fall back gracefully if missing
-    from scipy.stats import norm
+# ---------------------------------------------------------------------------
+# Normal distribution helper
+# ---------------------------------------------------------------------------
+# SciPy provides accurate implementations, but it is an optional dependency.
+# When SciPy is unavailable we fall back to an approximation based on the
+# error function available in the standard ``math`` module.
+try:  # SciPy is optional; use it when present for better accuracy
+    from scipy.stats import norm as _scipy_norm
 except Exception:  # pragma: no cover - handled in tests when SciPy absent
-    norm = None
+    _scipy_norm = None
+
+if _scipy_norm is not None:  # pragma: no branch - simple selection
+    norm = _scipy_norm
+else:
+    class _Norm:
+        """Minimal normal distribution helper using only ``math``."""
+
+        @staticmethod
+        def cdf(x: float) -> float:
+            return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+        @staticmethod
+        def sf(x: float) -> float:
+            # survival function = 1 - cdf
+            return 1.0 - _Norm.cdf(x)
+
+        @staticmethod
+        def ppf(p: float) -> float:
+            # Invert CDF using binary search. This avoids SciPy dependency while
+            # maintaining sufficient accuracy for reporting purposes.
+            lo, hi = -10.0, 10.0
+            while hi - lo > 1e-10:
+                mid = (lo + hi) / 2.0
+                if _Norm.cdf(mid) < p:
+                    lo = mid
+                else:
+                    hi = mid
+            return (lo + hi) / 2.0
+
+    norm = _Norm()
 
 
 class ReportGenerator:
@@ -160,23 +197,22 @@ class ReportGenerator:
         p_values = [pd.NA, pd.NA]
         causal_probs = [pd.NA, pd.NA]
 
-        if norm is not None:
-            # z critical value for two-tailed interval
-            z_crit = norm.ppf(1 - self.alpha / 2)
-            effects = [
-                (avg_effect, avg_effect_lower, avg_effect_upper, 0),
-                (cum_effect, cum_effect_lower, cum_effect_upper, 1),
-            ]
-            for mean, lower, upper, idx in effects:
-                if pd.isna(lower) or pd.isna(upper) or pd.isna(mean):
-                    continue
-                denom = (upper - lower) / (2 * z_crit) if z_crit else None
-                if not denom or denom <= 0:
-                    continue
-                z_score = mean / denom
-                p = 2 * norm.sf(abs(z_score))
-                p_values[idx] = p
-                causal_probs[idx] = 1 - p / 2  # probability effect has observed sign
+        # z critical value for two-tailed interval
+        z_crit = norm.ppf(1 - self.alpha / 2)
+        effects = [
+            (avg_effect, avg_effect_lower, avg_effect_upper, 0),
+            (cum_effect, cum_effect_lower, cum_effect_upper, 1),
+        ]
+        for mean, lower, upper, idx in effects:
+            if pd.isna(lower) or pd.isna(upper) or pd.isna(mean):
+                continue
+            denom = (upper - lower) / (2 * z_crit) if z_crit else None
+            if not denom or denom <= 0:
+                continue
+            z_score = mean / denom
+            p = 2 * norm.sf(abs(z_score))
+            p_values[idx] = p
+            causal_probs[idx] = 1 - p / 2  # probability effect has observed sign
 
         summary["p_value"] = p_values
         summary["causal_probability"] = causal_probs
