@@ -1,5 +1,11 @@
+from .statsmodels import StatsmodelsAdapter
 from .prophet import ProphetAdapter
 from .sktime import SktimeAdapter
-from .statsmodels import StatsmodelsAdapter
+from .tfp import TFPStructuralTimeSeries
 
-__all__ = ["ProphetAdapter", "SktimeAdapter", "StatsmodelsAdapter"]
+__all__ = [
+    "StatsmodelsAdapter",
+    "ProphetAdapter",
+    "SktimeAdapter",
+    "TFPStructuralTimeSeries",
+]
