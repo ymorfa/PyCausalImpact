@@ -32,6 +32,22 @@ To enable TensorFlow Probability-based models, install the optional `tfp` extra:
 pip install pycausalimpact[tfp]
 ```
 
+## Multiple Inference Methods
+
+The TensorFlow Probability adapter supports multiple inference algorithms.
+Variational inference is used by default, while Hamiltonian Monte Carlo (HMC)
+is available for more exact posterior sampling:
+
+```python
+from pycausalimpact.models import TFPStructuralTimeSeries
+
+# Variational inference (default)
+model_vi = TFPStructuralTimeSeries()
+
+# Hamiltonian Monte Carlo
+model_hmc = TFPStructuralTimeSeries(inference_method="hmc")
+```
+
 ## Usage Overview
 
 ```python
