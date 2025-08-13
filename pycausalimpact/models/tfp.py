@@ -11,7 +11,15 @@ sts = tfp.sts
 
 
 class TFPStructuralTimeSeries(BaseForecastModel):
-    """Adapter for TensorFlow Probability structural time series models."""
+    """Adapter for TensorFlow Probability structural time series models.
+
+    Methods
+    -------
+    posterior_samples() -> Any
+        Return the posterior samples produced during model fitting.
+    predict_samples(steps, X=None, n_samples=None) -> np.ndarray
+        Draw sample forecasts with shape ``(n_samples, steps)``.
+    """
 
     def __init__(
         self,
@@ -98,6 +106,10 @@ class TFPStructuralTimeSeries(BaseForecastModel):
 
         return self
 
+    def posterior_samples(self):
+        """Return posterior samples obtained during fitting."""
+        return self._posterior_samples
+
     def _forecast_dist(self, steps: int, X: pd.DataFrame | None):
         if self._y is None:
             raise ValueError("Model must be fit before prediction.")
@@ -129,6 +141,33 @@ class TFPStructuralTimeSeries(BaseForecastModel):
         forecast_dist = self._forecast_dist(steps, X)
         mean = forecast_dist.mean().numpy().squeeze(-1)
         return mean
+
+    def predict_samples(
+        self,
+        steps: int,
+        X: pd.DataFrame | None = None,
+        n_samples: int | None = None,
+    ) -> np.ndarray:
+        """Generate sample forecasts.
+
+        Parameters
+        ----------
+        steps: int
+            Number of periods to forecast.
+        X: pd.DataFrame, optional
+            Future values of exogenous regressors.
+        n_samples: int, optional
+            Number of sample trajectories to draw. Defaults to ``num_results``.
+
+        Returns
+        -------
+        np.ndarray
+            Array of shape ``(n_samples, steps)`` with simulated forecasts.
+        """
+
+        forecast_dist = self._forecast_dist(steps, X)
+        n = self.num_results if n_samples is None else n_samples
+        return forecast_dist.sample(n).numpy().squeeze(-1)
 
     def predict_interval(self, steps: int, X: pd.DataFrame = None, alpha: float = 0.05):
         forecast_dist = self._forecast_dist(steps, X)
