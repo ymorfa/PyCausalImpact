@@ -54,8 +54,11 @@ sktime = [
 ]
 
 tfp = [
+  "pytest>=7,<9",
+  "statsmodels>=0.13,<0.15",
   "tensorflow>=2",
   "tensorflow-probability>=0.25",
+  "tf_keras==2.19.0"
 ]
 
 # Full integration testing set (heavy). CI can `pip install .[test]`.
