@@ -5,6 +5,8 @@ Examples and additional guides for using PyCausalImpact live here.
 - [`examples/basic_usage.ipynb`](examples/basic_usage.ipynb) –
   minimal script showing how to estimate causal impact with a
   Statsmodels ARIMA model.
+- [`examples/tfp_multiple_inference.ipynb`](examples/tfp_multiple_inference.ipynb) –
+  demonstrates TensorFlow Probability models with variational and HMC inference.
 
 ## Summary Output
 
@@ -29,22 +31,38 @@ Together these metrics summarise both the magnitude and the statistical signific
 
 ## Running Backend Tests
 
-The test suite uses markers to target specific forecasting backends. After installing the optional dependencies with:
+The test suite uses markers to target specific forecasting backends.
+Install core optional dependencies and run all non-TFP tests with:
 
 ```
-pip install .[test]
+pip install .[statsmodels,prophet,sktime] pytest
+pytest -q -m "not tfp"
 ```
 
-run all tests via `pytest -q`.
-
-To skip slower TensorFlow Probability tests:
+Tests requiring TensorFlow Probability need its extra dependency:
 
 ```
-pytest -q -m "not heavy"
+pip install .[tfp] pytest
+pytest -q -m tfp
 ```
 
 To run tests for a single backend:
 
 ```
 pytest -q -k statsmodels   # or prophet, sktime, tfp
+```
+
+## Multiple Inference Methods
+
+The TensorFlow Probability adapter supports both variational inference and
+Hamiltonian Monte Carlo (HMC):
+
+```python
+from pycausalimpact.models import TFPStructuralTimeSeries
+
+# Variational inference (default)
+model_vi = TFPStructuralTimeSeries()
+
+# Hamiltonian Monte Carlo
+model_hmc = TFPStructuralTimeSeries(inference_method="hmc")
 ```

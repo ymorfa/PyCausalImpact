@@ -74,38 +74,27 @@ class TFPStructuralTimeSeries(BaseForecastModel):
         self._design_matrix = X.to_numpy(dtype=np.float32) if X is not None else None
         self._model = self._build_model(self._y, self._design_matrix)
 
-        target_log_prob_fn = self._model.joint_log_prob(observed_time_series=self._y)
-        surrogate_posterior = sts.build_factored_surrogate_posterior(self._model)
-        optimizer = tf.optimizers.Adam(0.1)
-        tfp.vi.fit_surrogate_posterior(
-            target_log_prob_fn=target_log_prob_fn,
-            surrogate_posterior=surrogate_posterior,
-            optimizer=optimizer,
-            num_steps=self.num_variational_steps,
-        )
-        self._surrogate_posterior = surrogate_posterior
-
         if self.inference_method == "hmc":
-
-            @tf.function
-            def _target_log_prob_fn(*params):
-                return target_log_prob_fn(*params)
-
-            current_state = surrogate_posterior.sample()
-            kernel = tfp.mcmc.HamiltonianMonteCarlo(
-                target_log_prob_fn=_target_log_prob_fn,
-                num_leapfrog_steps=3,
-                step_size=0.1,
-            )
-            self._posterior_samples = tfp.mcmc.sample_chain(
+            self._posterior_samples, _ = sts.fit_with_hmc(
+                self._model,
+                observed_time_series=self._y,
                 num_results=self.num_results,
-                num_burnin_steps=self.num_warmup_steps,
-                current_state=current_state,
-                kernel=kernel,
-                trace_fn=None,
+                num_warmup_steps=self.num_warmup_steps,
             )
         else:
+            target_log_prob_fn = self._model.joint_log_prob(
+                observed_time_series=self._y
+            )
+            surrogate_posterior = sts.build_factored_surrogate_posterior(self._model)
+            optimizer = tf.optimizers.Adam(0.1)
+            tfp.vi.fit_surrogate_posterior(
+                target_log_prob_fn=target_log_prob_fn,
+                surrogate_posterior=surrogate_posterior,
+                optimizer=optimizer,
+                num_steps=self.num_variational_steps,
+            )
             self._posterior_samples = surrogate_posterior.sample(self.num_results)
+            self._surrogate_posterior = surrogate_posterior
 
         return self
 
@@ -121,13 +110,16 @@ class TFPStructuralTimeSeries(BaseForecastModel):
             else:
                 X_future = X.to_numpy(dtype=np.float32)
             design_matrix = np.vstack([self._design_matrix, X_future])
-        else:
-            design_matrix = None
-
-        y_full = np.concatenate([self._y, np.zeros(steps, dtype=np.float32)])
-        model = self._build_model(y_full, design_matrix)
+            y_full = np.concatenate([self._y, np.zeros(steps, dtype=np.float32)])
+            model = self._build_model(y_full, design_matrix)
+            return sts.forecast(
+                model,
+                self._y,
+                self._posterior_samples,
+                num_steps_forecast=steps,
+            )
         return sts.forecast(
-            model,
+            self._model,
             self._y,
             self._posterior_samples,
             num_steps_forecast=steps,
@@ -136,7 +128,7 @@ class TFPStructuralTimeSeries(BaseForecastModel):
     def predict(self, steps: int, X: pd.DataFrame = None):
         forecast_dist = self._forecast_dist(steps, X)
         mean = forecast_dist.mean().numpy().squeeze(-1)
-        return pd.Series(mean, index=range(steps))
+        return mean
 
     def predict_interval(self, steps: int, X: pd.DataFrame = None, alpha: float = 0.05):
         forecast_dist = self._forecast_dist(steps, X)
