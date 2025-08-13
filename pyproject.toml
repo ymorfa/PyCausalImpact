@@ -10,11 +10,34 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [{ name = "PyCausalImpact Developers" }]
+keywords = [
+  "causal inference",
+  "time series",
+  "forecasting",
+  "impact evaluation",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+]
 dependencies = [
   "numpy>=1.20",
   "pandas>=1.2",
   "matplotlib>=3.5",
 ]
+
+[project.urls]
+Homepage = "https://github.com/pycausalimpact/PyCausalImpact"
+Documentation = "https://github.com/pycausalimpact/PyCausalImpact/tree/main/docs"
+Source = "https://github.com/pycausalimpact/PyCausalImpact"
+Issues = "https://github.com/pycausalimpact/PyCausalImpact/issues"
 
 [project.optional-dependencies]
 # Optional backends (install only what you need)

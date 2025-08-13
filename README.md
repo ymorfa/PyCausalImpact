@@ -139,6 +139,10 @@ See more runnable scripts in [`docs/examples/`](docs/examples/).
 - [ ] Additional model adapters and integrations
 - [ ] Release initial stable version (v1.0)
 
-## License
+## Contributing
 
-MIT License (planned).
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details on the development workflow, testing, and coding style.
+
+## License
+ 
+This project is licensed under the [MIT License](LICENSE).
