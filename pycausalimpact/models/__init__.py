@@ -1,18 +1,18 @@
 from .statsmodels import StatsmodelsAdapter
 
-# Prophet (opcional)
+# Prophet (optional)
 try:
     from .prophet import ProphetAdapter
 except ImportError:
     ProphetAdapter = None
 
-# Sktime (opcional)
+# Sktime (optional)
 try:
     from .sktime import SktimeAdapter
 except ImportError:
     SktimeAdapter = None
 
-# TFP (opcional)
+# TFP (optional)
 try:
     from .tfp import TFPStructuralTimeSeries
 except ImportError:
@@ -26,5 +26,6 @@ if ProphetAdapter is not None:
 if SktimeAdapter is not None:
     __all__.append("SktimeAdapter")
 
+# Expose TensorFlow Probability adapter if available
 if TFPStructuralTimeSeries is not None:
     __all__.append("TFPStructuralTimeSeries")
