@@ -59,6 +59,8 @@ class CausalImpactPy:
             pass
 
         self.results: Optional[pd.DataFrame] = None
+        self.posterior_pred_samples: Optional[np.ndarray] = None
+        self.effect_samples: Optional[dict] = None
 
         self._prepare_data()
 
@@ -104,6 +106,9 @@ class CausalImpactPy:
         else:
             post_X = pd.DataFrame(index=post_y.index)
 
+        self.posterior_pred_samples = None
+        self.effect_samples = None
+
         fit_kwargs = {}
         try:
             from .models.tfp import TFPStructuralTimeSeries
@@ -129,6 +134,60 @@ class CausalImpactPy:
                 self.model.predict(post_X),
                 index=post_y.index,
             )
+
+        # Posterior predictive samples
+        if hasattr(self.model, "predict_samples"):
+            try:
+                samples = np.asarray(
+                    self.model.predict_samples(
+                        len(post_y), post_X, n_samples=n_sim
+                    )
+                )
+                self.posterior_pred_samples = samples
+
+                y_pred_lower = pd.Series(
+                    np.quantile(samples, self.alpha / 2, axis=0),
+                    index=post_y.index,
+                )
+                y_pred_upper = pd.Series(
+                    np.quantile(samples, 1 - self.alpha / 2, axis=0),
+                    index=post_y.index,
+                )
+
+                point_samples = post_y.to_numpy() - samples
+                cumulative_samples = np.cumsum(point_samples, axis=1)
+                self.effect_samples = {
+                    "point": point_samples,
+                    "cumulative": cumulative_samples,
+                }
+
+                point_lower = pd.Series(
+                    np.quantile(point_samples, self.alpha / 2, axis=0),
+                    index=post_y.index,
+                )
+                point_upper = pd.Series(
+                    np.quantile(point_samples, 1 - self.alpha / 2, axis=0),
+                    index=post_y.index,
+                )
+                cum_lower = pd.Series(
+                    np.quantile(cumulative_samples, self.alpha / 2, axis=0),
+                    index=post_y.index,
+                )
+                cum_upper = pd.Series(
+                    np.quantile(cumulative_samples, 1 - self.alpha / 2, axis=0),
+                    index=post_y.index,
+                )
+
+                self.results = self._compute_effects(post_y, y_pred_post)
+                self.results["predicted_lower"] = y_pred_lower
+                self.results["predicted_upper"] = y_pred_upper
+                self.results["point_effect_lower"] = point_lower
+                self.results["point_effect_upper"] = point_upper
+                self.results["cumulative_effect_lower"] = cum_lower
+                self.results["cumulative_effect_upper"] = cum_upper
+                return self.results
+            except Exception:  # pragma: no cover
+                pass
 
         # Residuals for bootstrap simulations
         pre_pred = None
