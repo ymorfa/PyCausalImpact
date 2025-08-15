@@ -77,7 +77,12 @@ class CausalImpactPy:
             self.data, self.pre_period, self.post_period
         )
 
-    def run(self, n_sim: int = 1000, random_state: Optional[int] = 0):
+    def run(
+        self,
+        n_sim: int = 1000,
+        random_state: Optional[int] = 0,
+        summary_quantiles: Optional[List[float]] = None,
+    ):
         """Fit model and generate counterfactual predictions for post period.
 
         Parameters
@@ -120,7 +125,7 @@ class CausalImpactPy:
 
         try:
             self.model.fit(pre_y, pre_X, **fit_kwargs)
-        except Exception:
+        except TypeError:
             # Fall back to scikit-learn style (X, y)
             self.model.fit(pre_X, pre_y, **fit_kwargs)
 
@@ -135,7 +140,7 @@ class CausalImpactPy:
                 index=post_y.index,
             )
 
-        # Posterior predictive samples
+        samples = None
         if hasattr(self.model, "predict_samples"):
             try:
                 samples = np.asarray(
@@ -143,72 +148,8 @@ class CausalImpactPy:
                         len(post_y), post_X, n_samples=n_sim
                     )
                 )
-                self.posterior_pred_samples = samples
-
-                y_pred_lower = pd.Series(
-                    np.quantile(samples, self.alpha / 2, axis=0),
-                    index=post_y.index,
-                )
-                y_pred_upper = pd.Series(
-                    np.quantile(samples, 1 - self.alpha / 2, axis=0),
-                    index=post_y.index,
-                )
-
-                point_samples = post_y.to_numpy() - samples
-                cumulative_samples = np.cumsum(point_samples, axis=1)
-                self.effect_samples = {
-                    "point": point_samples,
-                    "cumulative": cumulative_samples,
-                }
-
-                point_lower = pd.Series(
-                    np.quantile(point_samples, self.alpha / 2, axis=0),
-                    index=post_y.index,
-                )
-                point_upper = pd.Series(
-                    np.quantile(point_samples, 1 - self.alpha / 2, axis=0),
-                    index=post_y.index,
-                )
-                cum_lower = pd.Series(
-                    np.quantile(cumulative_samples, self.alpha / 2, axis=0),
-                    index=post_y.index,
-                )
-                cum_upper = pd.Series(
-                    np.quantile(cumulative_samples, 1 - self.alpha / 2, axis=0),
-                    index=post_y.index,
-                )
-
-                self.results = self._compute_effects(post_y, y_pred_post)
-                self.results["predicted_lower"] = y_pred_lower
-                self.results["predicted_upper"] = y_pred_upper
-                self.results["point_effect_lower"] = point_lower
-                self.results["point_effect_upper"] = point_upper
-                self.results["cumulative_effect_lower"] = cum_lower
-                self.results["cumulative_effect_upper"] = cum_upper
-                return self.results
             except Exception:  # pragma: no cover
-                pass
-
-        # Residuals for bootstrap simulations
-        pre_pred = None
-        hasattr_fitted = hasattr(self.model, "fitted")
-        if hasattr_fitted and hasattr(self.model.fitted, "fittedvalues"):
-            pre_pred = pd.Series(
-                self.model.fitted.fittedvalues,
-                index=pre_y.index,
-            )
-        if pre_pred is None:
-            try:
-                pre_pred = pd.Series(
-                    self.model.predict(len(pre_y), pre_X),
-                    index=pre_y.index,
-                )
-            except Exception:  # pragma: no cover
-                pre_pred = pd.Series(
-                    np.repeat(pre_y.mean(), len(pre_y)),
-                    index=pre_y.index,
-                )
-        residuals = pre_y - pre_pred
+                samples = None
 
         y_pred_lower = y_pred_upper = None
 
@@ -244,14 +185,89 @@ class CausalImpactPy:
             y_pred_lower = pd.Series(lower, index=post_y.index)
             y_pred_upper = pd.Series(upper, index=post_y.index)
 
-        if y_pred_lower is None or y_pred_upper is None:
-            y_pred_lower, y_pred_upper = self._bootstrap_intervals(
+        if samples is None:
+            pre_pred = None
+            hasattr_fitted = hasattr(self.model, "fitted")
+            if hasattr_fitted and hasattr(self.model.fitted, "fittedvalues"):
+                pre_pred = pd.Series(
+                    self.model.fitted.fittedvalues,
+                    index=pre_y.index,
+                )
+            if pre_pred is None:
+                try:
+                    pre_pred = pd.Series(
+                        self.model.predict(len(pre_y), pre_X),
+                        index=pre_y.index,
+                    )
+                except Exception:  # pragma: no cover
+                    pre_pred = pd.Series(
+                        np.repeat(pre_y.mean(), len(pre_y)),
+                        index=pre_y.index,
+                    )
+            residuals = pre_y - pre_pred
+            boot_lower, boot_upper, samples = self._bootstrap_intervals(
                 residuals, y_pred_post, n_sim, random_state
             )
+            if y_pred_lower is None or y_pred_upper is None:
+                y_pred_lower, y_pred_upper = boot_lower, boot_upper
 
-        self.results = self._compute_effects(
-            post_y, y_pred_post, y_pred_lower, y_pred_upper
+        if y_pred_lower is None or y_pred_upper is None:
+            y_pred_lower = pd.Series(
+                np.quantile(samples, self.alpha / 2, axis=0),
+                index=post_y.index,
+            )
+            y_pred_upper = pd.Series(
+                np.quantile(samples, 1 - self.alpha / 2, axis=0),
+                index=post_y.index,
+            )
+
+        self.posterior_pred_samples = samples
+        point_samples = post_y.to_numpy() - samples
+        cumulative_samples = np.cumsum(point_samples, axis=1)
+        self.effect_samples = {
+            "point": point_samples,
+            "cumulative": cumulative_samples,
+        }
+
+        point_lower = pd.Series(
+            np.quantile(point_samples, self.alpha / 2, axis=0),
+            index=post_y.index,
         )
+        point_upper = pd.Series(
+            np.quantile(point_samples, 1 - self.alpha / 2, axis=0),
+            index=post_y.index,
+        )
+        cum_lower = pd.Series(
+            np.quantile(cumulative_samples, self.alpha / 2, axis=0),
+            index=post_y.index,
+        )
+        cum_upper = pd.Series(
+            np.quantile(cumulative_samples, 1 - self.alpha / 2, axis=0),
+            index=post_y.index,
+        )
+
+        self.results = self._compute_effects(post_y, y_pred_post)
+        self.results["predicted_lower"] = y_pred_lower
+        self.results["predicted_upper"] = y_pred_upper
+        self.results["point_effect_lower"] = point_lower
+        self.results["point_effect_upper"] = point_upper
+        self.results["cumulative_effect_lower"] = cum_lower
+        self.results["cumulative_effect_upper"] = cum_upper
+
+        if summary_quantiles:
+            for q in summary_quantiles:
+                q = float(q)
+                qname = int(q * 100)
+                self.results[f"predicted_q{qname}"] = pd.Series(
+                    np.quantile(samples, q, axis=0), index=post_y.index
+                )
+                self.results[f"point_effect_q{qname}"] = pd.Series(
+                    np.quantile(point_samples, q, axis=0), index=post_y.index
+                )
+                self.results[f"cumulative_effect_q{qname}"] = pd.Series(
+                    np.quantile(cumulative_samples, q, axis=0),
+                    index=post_y.index,
+                )
         return self.results
 
     def _bootstrap_intervals(
@@ -260,8 +276,8 @@ class CausalImpactPy:
         y_pred_post: pd.Series,
         n_sim: int,
         random_state: Optional[int] = 0,
-    ) -> Tuple[pd.Series, pd.Series]:
-        """Generate prediction intervals via residual bootstrapping."""
+    ) -> Tuple[pd.Series, pd.Series, np.ndarray]:
+        """Generate prediction samples via residual bootstrapping."""
 
         rng = np.random.default_rng(random_state)
         sims = rng.choice(
@@ -272,8 +288,10 @@ class CausalImpactPy:
         sims = sims + y_pred_post.values
         lower = np.quantile(sims, self.alpha / 2, axis=0)
         upper = np.quantile(sims, 1 - self.alpha / 2, axis=0)
-        return pd.Series(lower, index=y_pred_post.index), pd.Series(
-            upper, index=y_pred_post.index
+        return (
+            pd.Series(lower, index=y_pred_post.index),
+            pd.Series(upper, index=y_pred_post.index),
+            sims,
         )
 
     def _compute_effects(
@@ -302,6 +320,32 @@ class CausalImpactPy:
             df["cumulative_effect_upper"] = df["point_effect_upper"].cumsum()
 
         return df
+
+    def get_posterior_samples(self, kind: str = "prediction"):
+        """Return stored posterior samples for predictions or effects.
+
+        Parameters
+        ----------
+        kind: {"prediction", "effect"}, optional
+            Which samples to retrieve. ``"prediction"`` returns the raw
+            posterior predictive samples. ``"effect"`` returns a dictionary
+            with arrays for point and cumulative effects.
+
+        Returns
+        -------
+        numpy.ndarray | dict
+            The requested sample array(s).
+        """
+
+        if kind == "prediction":
+            if self.posterior_pred_samples is None:
+                raise ValueError("No posterior predictive samples available. Run .run() first.")
+            return self.posterior_pred_samples
+        if kind == "effect":
+            if self.effect_samples is None:
+                raise ValueError("No effect samples available. Run .run() first.")
+            return self.effect_samples
+        raise ValueError("kind must be 'prediction' or 'effect'")
 
     def summary(self, plot: bool = True):
         """Generate a textual and visual summary of the causal impact."""

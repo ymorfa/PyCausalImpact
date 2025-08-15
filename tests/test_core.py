@@ -128,6 +128,43 @@ def test_predict_samples_used_for_intervals():
     )
 
 
+def test_bootstrap_samples_attached_and_getter():
+    df = pd.DataFrame({"y": [1, 2, 3, 4, 5, 6]})
+    pre = (0, 2)
+    post = (3, 5)
+    impact = CausalImpactPy(
+        df,
+        index=None,
+        y=["y"],
+        pre_period=pre,
+        post_period=post,
+        model=MeanModel(),
+    )
+    impact.run(n_sim=50)
+    preds = impact.get_posterior_samples("prediction")
+    effects = impact.get_posterior_samples("effect")
+    assert preds.shape == (50, 3)
+    assert effects["point"].shape == (50, 3)
+
+
+def test_summary_quantiles():
+    df = pd.DataFrame({"y": [0, 1, 2, 3, 4, 5]})
+    pre = (0, 2)
+    post = (3, 5)
+    impact = CausalImpactPy(
+        df,
+        index=None,
+        y=["y"],
+        pre_period=pre,
+        post_period=post,
+        model=SamplesModel(),
+    )
+    res = impact.run(n_sim=101, summary_quantiles=[0.5])
+    assert res["predicted_q50"].tolist() == [1.0, 1.0, 1.0]
+    assert res["point_effect_q50"].tolist() == [2.0, 3.0, 4.0]
+    assert res["cumulative_effect_q50"].tolist() == [2.0, 5.0, 9.0]
+
+
 def test_random_state_reproducibility():
     df = pd.DataFrame({"y": [1, 2, 3, 4, 5, 6]})
     pre = (0, 2)
