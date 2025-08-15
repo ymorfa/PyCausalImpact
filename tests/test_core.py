@@ -3,6 +3,7 @@ import sys
 
 import pandas as pd
 import pytest
+import numpy as np
 from functools import partial
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
@@ -54,6 +55,18 @@ class MeanModel:
         return pd.Series(self.mean_, index=X.index)
 
 
+class SamplesModel:
+    def fit(self, y, X=None):
+        self.mean_ = float(y.mean())
+
+    def predict(self, steps, X=None):
+        return np.repeat(self.mean_, steps)
+
+    def predict_samples(self, steps, X=None, n_samples=10):
+        offsets = np.linspace(-1, 1, n_samples)
+        return np.tile(self.mean_ + offsets[:, None], (1, steps))
+
+
 def test_effects_and_ci_dimensions():
     df = pd.DataFrame({"y": [1, 2, 3, 4, 5, 6]})
     pre = (0, 2)
@@ -82,6 +95,37 @@ def test_effects_and_ci_dimensions():
     ]:
         assert col in res.columns
         assert len(res[col]) == len(res)
+
+
+def test_predict_samples_used_for_intervals():
+    df = pd.DataFrame({"y": [0, 1, 2, 3, 4, 5]})
+    pre = (0, 2)
+    post = (3, 5)
+    impact = CausalImpactPy(
+        df,
+        index=None,
+        y=["y"],
+        pre_period=pre,
+        post_period=post,
+        model=SamplesModel(),
+    )
+    res = impact.run(n_sim=101)
+    assert impact.posterior_pred_samples.shape == (101, 3)
+    assert impact.effect_samples["point"].shape == (101, 3)
+    assert res["predicted_lower"].tolist() == pytest.approx([0.05, 0.05, 0.05])
+    assert res["predicted_upper"].tolist() == pytest.approx([1.95, 1.95, 1.95])
+    assert res["point_effect_lower"].tolist() == pytest.approx(
+        [1.05, 2.05, 3.05]
+    )
+    assert res["point_effect_upper"].tolist() == pytest.approx(
+        [2.95, 3.95, 4.95]
+    )
+    assert res["cumulative_effect_lower"].tolist() == pytest.approx(
+        [1.05, 3.1, 6.15]
+    )
+    assert res["cumulative_effect_upper"].tolist() == pytest.approx(
+        [2.95, 6.9, 11.85]
+    )
 
 
 def test_random_state_reproducibility():
